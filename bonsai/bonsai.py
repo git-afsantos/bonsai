@@ -19,10 +19,9 @@
 #OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #THE SOFTWARE.
 
-
-################################################################################
+###############################################################################
 # Imports
-################################################################################
+###############################################################################
 
 import argparse
 import cPickle
@@ -30,16 +29,16 @@ import logging
 import os
 
 
-################################################################################
+###############################################################################
 # Globals
-################################################################################
+###############################################################################
 
 _log = logging.getLogger()
 
 
-################################################################################
+###############################################################################
 # Functions
-################################################################################
+###############################################################################
 
 def parse_arguments(argv, source_runner):
     parser = argparse.ArgumentParser(prog="bonsai",
@@ -55,12 +54,13 @@ def parse_arguments(argv, source_runner):
     parser_cpp = subparsers.add_parser("cpp")
     #parser_cpp.add_argument("-c", "--compiler", default="clang",
                             #help="parsing library (default: clang)")
-    parser_cpp.add_argument("-l", "--lib-path", help="standard library path")
-    parser_cpp.add_argument("-w", "--workspace", default=os.path.expanduser("~"),
-                            help="source workspace (default: user home)")
+    parser_cpp.add_argument("-l", "--lib-path", help = "standard library path")
+    parser_cpp.add_argument("-w", "--workspace",
+                            default = os.path.expanduser("~"),
+                            help = "source workspace (default: user home)")
     parser_cpp.add_argument("-d", "--compile-db",
-                            help="compilation database directory")
-    parser_cpp.add_argument("files", nargs="+" help="files to parse")
+                            help = "compilation database directory")
+    parser_cpp.add_argument("files", nargs = "+" help = "files to parse")
     parser_cpp.set_defaults(parser = parse_cpp, source_runner = source_runner)
 
     return parser.parse_args() if argv is None else parser.parse_args(argv)
