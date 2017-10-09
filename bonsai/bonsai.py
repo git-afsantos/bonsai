@@ -63,15 +63,15 @@ def parse_arguments(argv, source_runner):
                             help = "source workspace (default: user home)")
     parser_cpp.add_argument("-d", "--compile-db",
                             help = "compilation database directory")
-    parser_cpp.add_argument("files", nargs = "+" help = "files to parse")
+    parser_cpp.add_argument("files", nargs = "+", help = "files to parse")
     parser_cpp.set_defaults(parser = parse_cpp, source_runner = source_runner)
 
     return parser.parse_args() if argv is None else parser.parse_args(argv)
 
 
 def parse_cpp(args):
-    parmod = importlib.import_module(args.compiler + "_parser",
-                                     package = "bonsai.cpp")
+    parmod = importlib.import_module("..cpp." + args.compiler + "_parser",
+                                     package = __name__)
     if args.lib_path:
         parmod.CppAstParser.set_library_path(args.lib_path)
     else:
@@ -80,7 +80,7 @@ def parse_cpp(args):
         parmod.CppAstParser.set_database(args.compile_db)
     parser = parmod.CppAstParser(workspace = args.workspace)
     for f in args.files:
-        if parser.parse(f) is None:
+        if parser.parse(os.path.abspath(f)) is None:
             raise ValueError("no compile commands for file " + f)
     return parser
 
