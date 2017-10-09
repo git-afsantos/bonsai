@@ -1,0 +1,5 @@
+bonsai/*.pyc
+bonsai/**/*.pyc
+build
+dist
+bonsai.egg-info
