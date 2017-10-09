@@ -25,6 +25,7 @@
 
 import argparse
 import cPickle
+import importlib
 import logging
 import os
 
@@ -47,13 +48,12 @@ def parse_arguments(argv, source_runner):
                         help = "set debug logging")
     parser.add_argument("--text", action = "store_true",
                         help = "set output to text format")
-    parser.add_argument("-o", "--output", default = "bonsai.dat",
-                        help = "file to store output")
+    parser.add_argument("-o", "--output", help = "file to store output")
     subparsers = parser.add_subparsers()
 
     parser_cpp = subparsers.add_parser("cpp")
-    #parser_cpp.add_argument("-c", "--compiler", default="clang",
-                            #help="parsing library (default: clang)")
+    parser_cpp.add_argument("-c", "--compiler", default="clang",
+                            help="parsing library (default: clang)")
     parser_cpp.add_argument("-l", "--lib-path",
                             help = "library path (required for clang)")
     parser_cpp.add_argument("-s", "--std-includes",
@@ -70,13 +70,15 @@ def parse_arguments(argv, source_runner):
 
 
 def parse_cpp(args):
+    parmod = importlib.import_module(args.compiler + "_parser",
+                                     package = "bonsai.cpp")
     if args.lib_path:
-        CppAstParser.set_library_path(args.lib_path)
+        parmod.CppAstParser.set_library_path(args.lib_path)
     else:
-        CppAstParser.set_library_path()
+        parmod.CppAstParser.set_library_path()
     if args.compile_db:
-        CppAstParser.set_database(args.compile_db)
-    parser = CppAstParser(workspace = args.workspace)
+        parmod.CppAstParser.set_database(args.compile_db)
+    parser = parmod.CppAstParser(workspace = args.workspace)
     for f in args.files:
         if parser.parse(f) is None:
             raise ValueError("no compile commands for file " + f)
@@ -90,20 +92,19 @@ def main(argv = None, source_runner = False):
                             level = logging.DEBUG)
     else:
         logging.basicConfig(level = logging.WARNING)
-
     try:
         _log.info("Executing selected parser.")
         parser = args.parser(args)
         text = parser.global_scope.pretty_str()
         print text
-        _log.debug("Saving output to %s", args.output)
-        with open(args.output, "w") as handle:
-            if args.text:
-                handle.write(text)
-            else:
-                cPickle.dump(parser, handle, cPickle.HIGHEST_PROTOCOL)
+        if args.output:
+            _log.debug("Saving output to %s", args.output)
+            with open(args.output, "w") as handle:
+                if args.text:
+                    handle.write(text)
+                else:
+                    cPickle.dump(parser, handle, cPickle.HIGHEST_PROTOCOL)
         return 0
-
     except RuntimeError as err:
         _log.error(str(err))
         return 1
