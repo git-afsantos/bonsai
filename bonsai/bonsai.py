@@ -54,7 +54,10 @@ def parse_arguments(argv, source_runner):
     parser_cpp = subparsers.add_parser("cpp")
     #parser_cpp.add_argument("-c", "--compiler", default="clang",
                             #help="parsing library (default: clang)")
-    parser_cpp.add_argument("-l", "--lib-path", help = "standard library path")
+    parser_cpp.add_argument("-l", "--lib-path",
+                            help = "library path (required for clang)")
+    parser_cpp.add_argument("-s", "--std-includes",
+                            help = "standard include path")
     parser_cpp.add_argument("-w", "--workspace",
                             default = os.path.expanduser("~"),
                             help = "source workspace (default: user home)")
