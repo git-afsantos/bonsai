@@ -49,6 +49,7 @@ class CppFunction(CodeFunction):
         CodeFunction.__init__(self, scope, parent, id, name, result)
         self.full_type = result
         self.result = result[6:] if result.startswith("const ") else result
+        self.template_parameters = 0
 
     @property
     def is_constructor(self):
