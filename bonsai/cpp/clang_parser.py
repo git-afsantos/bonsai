@@ -29,6 +29,7 @@ import os
 
 import clang.cindex as clang
 
+from ..parser import AnalysisData
 from .model import *
 
 
@@ -717,42 +718,6 @@ class CppTopLevelBuilder(CppEntityBuilder):
 ###############################################################################
 # AST Parsing
 ###############################################################################
-
-class AnalysisData(object):
-    def __init__(self):
-        self.entities   = {}    # USR -> CppEntity
-        self._refs      = {}    # USR -> [CppEntity]
-
-    def register(self, cppobj, declaration = False):
-        previous = self.entities.get(cppobj.id)
-        if declaration and not previous is None:
-            cppobj._definition = previous
-            return
-        if not declaration and not previous is None:
-            for ref in previous.references:
-                cppobj.references.append(ref)
-                ref.reference = cppobj
-            previous.references = []
-            if isinstance(cppobj, CppFunction):
-                previous._definition = cppobj
-        self.entities[cppobj.id] = cppobj
-        if cppobj.id in self._refs:
-            for ref in self._refs[cppobj.id]:
-                cppobj.references.append(ref)
-                ref.reference = cppobj
-            del self._refs[cppobj.id]
-
-    def reference(self, id, ref):
-        cppobj = self.entities.get(id)
-        if not cppobj is None:
-            cppobj.references.append(ref)
-            ref.reference = cppobj
-        else:
-            if not id in self._refs:
-                self._refs[id] = []
-            self._refs[id].append(ref)
-            ref.reference = id
-
 
 class CppAstParser(object):
     lib_path = None
