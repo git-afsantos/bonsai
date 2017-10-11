@@ -746,7 +746,7 @@ class CppAstParser(object):
 
     def __init__(self, workspace = ""):
     # public:
-        self.workspace      = workspace
+        self.workspace      = os.path.abspath(workspace) if workspace else ""
         self.global_scope   = CppGlobalScope()
         self.data           = AnalysisData()
     # private:
@@ -754,6 +754,7 @@ class CppAstParser(object):
         self._db            = CppAstParser.database
 
     def parse(self, file_path):
+        file_path = os.path.abspath(file_path)
         if self._db is None:
             return self._parse_without_db(file_path)
         return self._parse_from_db(file_path)
