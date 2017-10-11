@@ -32,11 +32,59 @@ What to expect from **bonsai**:
   - a console script to use as a standalone application.
 
 ## Installation
-To do. Will probably be distributed as a Python package, something along the lines of
+Here are some instructions to help you get bonsai.
+Bonsai has been tested with *Linux Ubuntu* and *Python 2.7*,
+but the platform should not make much of a difference.
+Dependencies are minimal, and depend on what you want to analyse.
 
+Since at the moment there is only a single implementation for C++
+using clang 3.8, you will need to install `libclang` and the
+[`clang.cindex` bindings](https://github.com/llvm-mirror/clang/tree/master/bindings/python)
+(`pip install clang`) to parse C++ files. Skip this if you want to use
+the library in any other way.
+
+### Method 1: Running Without Installation
+
+Open a terminal, and move to a directory where you want to clone this
+repository.
+
+```bash
+git clone https://github.com/git-afsantos/bonsai.git
 ```
-pip install bonsai
+
+There is an executable script in the root of this repository to help you get started.
+It allows you to run bonsai without installing it. Make sure that your terminal is at
+the root of the repository.
+
+```bash
+cd bonsai
+python bonsai-runner.py <args>
 ```
+
+You can also run it with the executable package syntax.
+
+```bash
+python -m bonsai <args>
+```
+
+### Method 2: Installing Bonsai on Your Machine
+
+Bonsai is now available on [PyPi](https://pypi.python.org/pypi/bonsai-code).
+You can install it from source or from a wheel.
+
+```bash
+[sudo] pip install bonsai-code
+```
+
+The above command will install bonsai for you. Alternatively, download and extract its
+source, move to the project's root directory, and then execute the following.
+
+```bash
+python setup.py install
+```
+
+After installation, you should be able to run the command `bonsai` in your terminal
+from anywhere.
 
 ## Examples
 The `cpp_example.py` script at the root of this repository is a small example on
