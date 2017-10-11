@@ -7,7 +7,7 @@ def read(fname):
 
 
 setup(
-    name            = "bonsai",
+    name            = "bonsai-code",
     version         = "0.1.0",
     author          = "Andre Santos",
     author_email    = "andre.f.santos@inesctec.pt",
