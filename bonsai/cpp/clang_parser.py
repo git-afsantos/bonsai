@@ -759,8 +759,14 @@ class CppAstParser(object):
             return self._parse_without_db(file_path)
         return self._parse_from_db(file_path)
 
+    def get_ast(self, file_path):
+        file_path = os.path.abspath(file_path)
+        if self._db is None:
+            return self._parse_without_db(file_path, just_ast = True)
+        return self._parse_from_db(file_path, just_ast = True)
 
-    def _parse_from_db(self, file_path):
+
+    def _parse_from_db(self, file_path, just_ast = False):
     # ----- command retrieval -------------------------------------------------
         cmd = self._db.getCompileCommands(file_path) or ()
         if not cmd:
@@ -773,11 +779,13 @@ class CppAstParser(object):
     # ----- parsing and AST analysis ------------------------------------------
                 unit = self._index.parse(None, args)
                 self._check_compilation_problems(unit)
+                if just_ast:
+                    return self._ast_str(unit.cursor)
                 self._ast_analysis(unit.cursor)
         self.global_scope._afterpass()
         return self.global_scope
 
-    def _parse_without_db(self, file_path):
+    def _parse_without_db(self, file_path, just_ast = False):
     # ----- command retrieval -------------------------------------------------
         with cwd(os.path.dirname(file_path)):
             args = ["-I" + CppAstParser.includes, file_path]
@@ -786,6 +794,8 @@ class CppAstParser(object):
     # ----- parsing and AST analysis ------------------------------------------
             unit = self._index.parse(None, args)
             self._check_compilation_problems(unit)
+            if just_ast:
+                return self._ast_str(unit.cursor)
             self._ast_analysis(unit.cursor)
         self.global_scope._afterpass()
         return self.global_scope
@@ -809,12 +819,49 @@ class CppAstParser(object):
                     builder.parent._add(cppobj)
                 queue.extend(builders)
 
+    def _ast_str(self, top_cursor):
+        assert top_cursor.kind == CK.TRANSLATION_UNIT
+        lines = []
+        for cursor in top_cursor.get_children():
+            if (cursor.location.file
+                    and cursor.location.file.name.startswith(self.workspace)):
+                lines.append(self._cursor_str(cursor, 0))
+                indent = 0
+                stack = list(cursor.get_children())
+                stack.append(1)
+                while stack:
+                    c = stack.pop()
+                    if isinstance(c, int):
+                        indent += c
+                    else:
+                        lines.append(self._cursor_str(c, indent))
+                        stack.append(-1)
+                        stack.extend(c.get_children())
+                        stack.append(1)
+        return "\n".join(lines)
+
     def _check_compilation_problems(self, translation_unit):
         if translation_unit.diagnostics:
             for diagnostic in translation_unit.diagnostics:
                 if diagnostic.severity >= clang.Diagnostic.Error:
                     # logging.warning(diagnostic.spelling)
                     print "WARNING", diagnostic.spelling
+
+    def _cursor_str(self, cursor, indent):
+        line = 0
+        col = 0
+        try:
+            if cursor.location.file:
+                line = cursor.location.line
+                col = cursor.location.column
+        except ArgumentError as e:
+            pass
+        name = repr(cursor.kind)[11:]
+        spell = cursor.spelling or "[no spelling]"
+        tokens = len(list(cursor.get_tokens()))
+        prefix = indent * "| "
+        return "{}[{}:{}] {}: {} [{} tokens]".format(prefix, line, col,
+                                                    name, spell, tokens)
 
 
 ###############################################################################

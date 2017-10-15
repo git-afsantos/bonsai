@@ -101,6 +101,21 @@ class CodeEntity(object):
         """
         return (" " * indent) + self.__str__()
 
+    def ast_str(self, indent = 0):
+        """Return a minimal string to print a tree-like structure.
+
+        Kwargs:
+            indent (int): The number of indentation levels.
+        """
+        line = self.line or 0
+        col = self.column or 0
+        name = type(self).__name__
+        spell = "[no spelling]"
+        if hasattr(self, "name"):
+            spell = self.name or spell
+        prefix = indent * "| "
+        return "{}[{}:{}] {}: {}".format(prefix, line, col, name, spell)
+
     def __str__(self):
         """Return a string representation of this object."""
         return self.__repr__()

@@ -46,8 +46,9 @@ def parse_arguments(argv, source_runner):
             description="Small and sane parsing trees.")
     parser.add_argument("--debug", action = "store_true",
                         help = "set debug logging")
-    parser.add_argument("--text", action = "store_true",
-                        help = "set output to text format")
+    parser.add_argument("-f", "--format", default = "pickle",
+                        choices = ["text", "bonsai", "ast", "pickle"],
+                        help = "set the output format")
     parser.add_argument("-o", "--output", help = "file to store output")
     subparsers = parser.add_subparsers()
 
@@ -79,10 +80,34 @@ def parse_cpp(args):
     if args.compile_db:
         parmod.CppAstParser.set_database(args.compile_db)
     parser = parmod.CppAstParser(workspace = args.workspace)
-    for f in args.files:
-        if parser.parse(os.path.abspath(f)) is None:
-            raise ValueError("no compile commands for file " + f)
+    if args.format == "ast":
+        output = []
+        for f in args.files:
+            output.append("# " + f)
+            output.append(parser.get_ast(os.path.abspath(f)))
+        return "\n".join(output)
+    else:
+        for f in args.files:
+            if parser.parse(os.path.abspath(f)) is None:
+                raise ValueError("no compile commands for file " + f)
     return parser
+
+
+def bonsai_format(codeobj):
+    depth = 0
+    par = codeobj.parent
+    while par:
+        depth += 1
+        par = par.parent
+    lines = []
+    for obj in codeobj.walk_preorder():
+        i = 0
+        par = obj.parent
+        while par:
+            i += 1
+            par = par.parent
+        lines.append(obj.ast_str(indent = max(0, i - depth)))
+    return "\n".join(lines)
 
 
 def main(argv = None, source_runner = False):
@@ -95,15 +120,20 @@ def main(argv = None, source_runner = False):
     try:
         _log.info("Executing selected parser.")
         parser = args.parser(args)
-        text = parser.global_scope.pretty_str()
+        if args.format == "ast":
+            text = parser
+        elif args.format == "bonsai":
+            text = bonsai_format(parser.global_scope)
+        else:
+            text = parser.global_scope.pretty_str()
         print text
         if args.output:
             _log.debug("Saving output to %s", args.output)
             with open(args.output, "w") as handle:
-                if args.text:
-                    handle.write(text)
-                else:
+                if args.format == "pickle":
                     cPickle.dump(parser, handle, cPickle.HIGHEST_PROTOCOL)
+                else:
+                    handle.write(text)
         return 0
     except RuntimeError as err:
         _log.error(str(err))
