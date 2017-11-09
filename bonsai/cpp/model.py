@@ -83,6 +83,11 @@ SomeCpp = SomeValue
 
 
 class CppReference(CodeReference):
+    def __init__(self, scope, parent, name, result, paren = False):
+        CodeReference.__init__(self, scope, parent, name, result, paren = paren)
+        self.full_type = result
+        self.result = result[6:] if result.startswith("const ") else result
+
     def pretty_str(self, indent = 0):
         spaces = (" " * indent)
         pretty = "{}({})" if self.parenthesis else "{}{}"
@@ -103,6 +108,12 @@ class CppOperator(CodeOperator):
                       "<", ">", "<=", ">=", "==", "!=", "&&", "||", "=",
                       "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", "&=",
                       "|=", "^=", ",")
+
+    def __init__(self, scope, parent, name, result, args = None, paren = False):
+        CodeOperator.__init__(self, scope, parent, name, result,
+                              args = args, paren = paren)
+        self.full_type = result
+        self.result = result[6:] if result.startswith("const ") else result
 
     @property
     def is_assignment(self):
@@ -131,6 +142,8 @@ class CppFunctionCall(CodeFunctionCall):
     def __init__(self, scope, parent, name, result):
         CodeFunctionCall.__init__(self, scope, parent, name, result)
         self.template = None
+        self.full_type = result
+        self.result = result[6:] if result.startswith("const ") else result
 
     @property
     def is_constructor(self):
@@ -180,7 +193,11 @@ class CppFunctionCall(CodeFunctionCall):
         return "[{}] {}{}({})".format(self.result, self.name, temp, args)
 
 
-CppDefaultArgument = CodeDefaultArgument
+class CppDefaultArgument(CodeDefaultArgument):
+    def __init__(self, scope, parent, result):
+        CodeDefaultArgument.__init__(self, scope, parent, result)
+        self.full_type = result
+        self.result = result[6:] if result.startswith("const ") else result
 
 
 # ----- Statement Entities ----------------------------------------------------
