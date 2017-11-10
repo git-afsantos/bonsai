@@ -71,22 +71,21 @@ CppGlobalScope = CodeGlobalScope
 
 # ----- Expression Entities ---------------------------------------------------
 
-class CppExpression(CodeExpression):
-    def __init__(self, scope, parent, name, result, paren = False):
-        CodeExpression.__init__(self, scope, parent,
-                                name, result, paren = False)
-        self.full_type = result
-        self.result = result[6:] if result.startswith("const ") else result
-
+CppExpression = CodeExpression
 
 SomeCpp = SomeValue
 
 
-class CppReference(CodeReference):
-    def __init__(self, scope, parent, name, result, paren = False):
-        CodeReference.__init__(self, scope, parent, name, result, paren = paren)
+class CppExpressionInterface(object):
+    def _trim_result(self):
         self.full_type = result
         self.result = result[6:] if result.startswith("const ") else result
+
+
+class CppReference(CodeReference, CppExpressionInterface):
+    def __init__(self, scope, parent, name, result, paren = False):
+        CodeReference.__init__(self, scope, parent, name, result, paren = paren)
+        self._trim_result()
 
     def pretty_str(self, indent = 0):
         spaces = (" " * indent)
@@ -101,7 +100,7 @@ class CppReference(CodeReference):
         return pretty.format(spaces, name)
 
 
-class CppOperator(CodeOperator):
+class CppOperator(CodeOperator, CppExpressionInterface):
     _UNARY_TOKENS = ("+", "-", "++", "--", "*", "&", "!", "~")
 
     _BINARY_TOKENS = ("+", "-", "*", "/", "%", "&", "|", "^", "<<", ">>",
@@ -112,8 +111,7 @@ class CppOperator(CodeOperator):
     def __init__(self, scope, parent, name, result, args = None, paren = False):
         CodeOperator.__init__(self, scope, parent, name, result,
                               args = args, paren = paren)
-        self.full_type = result
-        self.result = result[6:] if result.startswith("const ") else result
+        self._trim_result()
 
     @property
     def is_assignment(self):
@@ -138,12 +136,11 @@ class CppOperator(CodeOperator):
         return pretty.format(indent, operator)
 
 
-class CppFunctionCall(CodeFunctionCall):
+class CppFunctionCall(CodeFunctionCall, CppExpressionInterface):
     def __init__(self, scope, parent, name, result):
         CodeFunctionCall.__init__(self, scope, parent, name, result)
         self.template = None
-        self.full_type = result
-        self.result = result[6:] if result.startswith("const ") else result
+        self._trim_result()
 
     @property
     def is_constructor(self):
@@ -193,11 +190,10 @@ class CppFunctionCall(CodeFunctionCall):
         return "[{}] {}{}({})".format(self.result, self.name, temp, args)
 
 
-class CppDefaultArgument(CodeDefaultArgument):
+class CppDefaultArgument(CodeDefaultArgument, CppExpressionInterface):
     def __init__(self, scope, parent, result):
         CodeDefaultArgument.__init__(self, scope, parent, result)
-        self.full_type = result
-        self.result = result[6:] if result.startswith("const ") else result
+        self._trim_result()
 
 
 # ----- Statement Entities ----------------------------------------------------
