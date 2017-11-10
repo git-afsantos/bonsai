@@ -77,7 +77,7 @@ SomeCpp = SomeValue
 
 
 class CppExpressionInterface(object):
-    def _trim_result(self):
+    def _trim_result(self, result):
         self.full_type = result
         self.result = result[6:] if result.startswith("const ") else result
 
@@ -85,7 +85,7 @@ class CppExpressionInterface(object):
 class CppReference(CodeReference, CppExpressionInterface):
     def __init__(self, scope, parent, name, result, paren = False):
         CodeReference.__init__(self, scope, parent, name, result, paren = paren)
-        self._trim_result()
+        self._trim_result(result)
 
     def pretty_str(self, indent = 0):
         spaces = (" " * indent)
@@ -111,7 +111,7 @@ class CppOperator(CodeOperator, CppExpressionInterface):
     def __init__(self, scope, parent, name, result, args = None, paren = False):
         CodeOperator.__init__(self, scope, parent, name, result,
                               args = args, paren = paren)
-        self._trim_result()
+        self._trim_result(result)
 
     @property
     def is_assignment(self):
@@ -140,7 +140,7 @@ class CppFunctionCall(CodeFunctionCall, CppExpressionInterface):
     def __init__(self, scope, parent, name, result):
         CodeFunctionCall.__init__(self, scope, parent, name, result)
         self.template = None
-        self._trim_result()
+        self._trim_result(result)
 
     @property
     def is_constructor(self):
@@ -193,7 +193,7 @@ class CppFunctionCall(CodeFunctionCall, CppExpressionInterface):
 class CppDefaultArgument(CodeDefaultArgument, CppExpressionInterface):
     def __init__(self, scope, parent, result):
         CodeDefaultArgument.__init__(self, scope, parent, result)
-        self._trim_result()
+        self._trim_result(result)
 
 
 # ----- Statement Entities ----------------------------------------------------
