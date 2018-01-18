@@ -189,3 +189,19 @@ def get_control_depth(codeobj, recursive = False):
             return depth
         codeobj = codeobj.parent
     return depth
+
+
+def get_conditions(codeobj, recursive = False):
+    conditions = []
+    while not codeobj is None:
+        if (isinstance(codeobj, CodeBlock)
+                and isinstance(codeobj.parent, CodeControlFlow)):
+            conditions.append(codeobj.parent.condition)
+        elif isinstance(codeobj, CodeFunction):
+            if recursive:
+                for call in codeobj.references:
+                    if isinstance(call, CodeFunctionCall):
+                        conditions.extend(get_conditions(call))
+            return conditions
+        codeobj = codeobj.parent
+    return conditions
