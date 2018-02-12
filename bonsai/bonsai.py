@@ -96,14 +96,14 @@ def parse_cpp(args):
 def bonsai_format(codeobj):
     depth = 0
     par = codeobj.parent
-    while par:
+    while not par is None:
         depth += 1
         par = par.parent
     lines = []
     for obj in codeobj.walk_preorder():
         i = 0
         par = obj.parent
-        while par:
+        while not par is None:
             i += 1
             par = par.parent
         lines.append(obj.ast_str(indent = max(0, i - depth)))
