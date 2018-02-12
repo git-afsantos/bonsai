@@ -749,6 +749,7 @@ class CppAstParser(object):
         self.workspace      = os.path.abspath(workspace) if workspace else ""
         self.global_scope   = CppGlobalScope()
         self.data           = AnalysisData()
+        self.user_includes  = []
     # private:
         self._index         = None
         self._db            = CppAstParser.database
@@ -788,7 +789,10 @@ class CppAstParser(object):
     def _parse_without_db(self, file_path, just_ast = False):
     # ----- command retrieval -------------------------------------------------
         with cwd(os.path.dirname(file_path)):
-            args = ["-I" + CppAstParser.includes, file_path]
+            args = ["-I" + CppAstParser.includes]
+            for include_dir in self.user_includes:
+                args.append("-I" + include_dir)
+            args.append(file_path)
             if self._index is None:
                 self._index = clang.Index.create()
     # ----- parsing and AST analysis ------------------------------------------
