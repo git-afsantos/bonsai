@@ -25,7 +25,7 @@
 
 from .model import CodeEntity, CodeBlock, CodeControlFlow, CodeExpression, \
                    CodeFunction, CodeFunctionCall, CodeOperator, \
-                   CodeReference, CodeVariable
+                   CodeReference, CodeVariable, CodeLoop
 
 
 ###############################################################################
@@ -189,6 +189,21 @@ def get_control_depth(codeobj, recursive = False):
             return depth
         codeobj = codeobj.parent
     return depth
+
+
+def is_under_loop(codeobj, recursive = False):
+    while not codeobj is None:
+        if (isinstance(codeobj, CodeBlock)
+                and isinstance(codeobj.parent, CodeLoop)):
+            return True
+        elif isinstance(codeobj, CodeFunction):
+            if recursive:
+                return any(is_under_loop(call)
+                           for call in codeobj.references
+                           if isinstance(call, CodeFunctionCall))
+            return False
+        codeobj = codeobj.parent
+    return False
 
 
 def get_conditions(codeobj, recursive = False):
