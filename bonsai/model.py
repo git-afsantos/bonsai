@@ -113,8 +113,12 @@ class CodeEntity(object):
         spell = "[no spelling]"
         if hasattr(self, "name"):
             spell = self.name or spell
+        result = ""
+        if hasattr(self, "result"):
+            result = " (" + self.result + ")"
         prefix = indent * "| "
-        return "{}[{}:{}] {}: {}".format(prefix, line, col, name, spell)
+        return "{}[{}:{}] {}{}: {}".format(prefix, line, col,
+                                           name, result, spell)
 
     def __str__(self):
         """Return a string representation of this object."""
