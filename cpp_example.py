@@ -25,14 +25,15 @@ from bonsai.analysis import *
 from bonsai.cpp.clang_parser import CppAstParser
 
 # ----- Setup ------------------------------------------------------------------
-if len(sys.argv) != 2:
+if len(sys.argv) < 2:
     print "Please provide a file to be analysed."
     sys.exit(1)
 CppAstParser.set_library_path()
 parser = CppAstParser(workspace = "examples/cpp")
-if parser.parse(sys.argv[1]) is None:
-    print "No compile commands for the given file."
-    sys.exit(1)
+for i in xrange(1, len(sys.argv)):
+    if parser.parse(sys.argv[i]) is None:
+        print "No compile commands for file", sys.argv[i]
+        sys.exit(1)
 # ----- Printing Program -------------------------------------------------------
 print parser.global_scope.pretty_str()
 print "\n----------------------------------\n"
