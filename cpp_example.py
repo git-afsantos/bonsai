@@ -37,6 +37,13 @@ for i in xrange(1, len(sys.argv)):
 # ----- Printing Program -------------------------------------------------------
 print parser.global_scope.pretty_str()
 print "\n----------------------------------\n"
+# ----- Printing Call Graph ----------------------------------------------------
+graphs = CallGraph.make_all(parser.global_scope)
+for function, graph in graphs.iteritems():
+    if not graph.path:
+        continue
+    print graph.pretty_str()
+print "\n----------------------------------\n"
 # ----- Performing Queries -----------------------------------------------------
 print "# QUERY FOR VARIABLE 'a'"
 for cppobj in (CodeQuery(parser.global_scope).all_references
