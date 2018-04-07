@@ -23,9 +23,14 @@
 # Imports
 ###############################################################################
 
-from .model import CodeEntity, CodeBlock, CodeControlFlow, CodeExpression, \
-                   CodeFunction, CodeFunctionCall, CodeOperator, \
-                   CodeReference, CodeVariable, CodeLoop
+from collections import namedtuple
+
+from .model import (
+    CodeEntity, CodeBlock, CodeControlFlow, CodeExpression, CodeConditional,
+    CodeFunction, CodeFunctionCall, CodeOperator, CodeDeclaration,
+    CodeReference, CodeVariable, CodeLoop, CodeGlobalScope, CodeSwitch,
+    CodeNamespace, CodeClass, CodeExpressionStatement, CodeJumpStatement,
+)
 
 
 ###############################################################################
@@ -86,6 +91,129 @@ class CodeQuery(object):
             if passes:
                 result.append(codeobj)
         return result
+
+
+class CallGraph(object):
+    CallNode = namedtuple("CallNode", ["call", "function"])
+    ControlNode = namedtuple("ControlNode", ["branches", "repeats"])
+    ConditionNode = namedtuple("ConditionNode", ["condition", "negate", "path"])
+
+    @classmethod
+    def make_all(cls, codeobj):
+        assert isinstance(codeobj, (CodeGlobalScope, CodeNamespace,
+                                    CodeClass, CodeFunction))
+        graphs = {}
+        for function in CallGraph._get_all_functions(codeobj):
+            graphs[function] = CallGraph(function)
+        return graphs
+
+    def __init__(self, function):
+        assert isinstance(function, CodeFunction)
+        self.function = function
+        self.path = []
+        self._build_block(function.body, self.path)
+
+    def _build_block(self, block, path):
+        assert isinstance(block, CodeBlock)
+        for stmt in block.body:
+            if isinstance(stmt, CodeExpressionStatement):
+                self._build_expression(stmt.expression, path)
+            elif isinstance(stmt, CodeJumpStatement):
+                if isinstance(stmt.value, CodeExpression):
+                    self._build_expression(stmt.value, path)
+            elif isinstance(stmt, CodeBlock):
+                self._build_block(stmt, path)
+            elif isinstance(stmt, CodeDeclaration):
+                for var in stmt.variables:
+                    if isinstance(var.value, CodeExpression):
+                        self._build_expression(var.value, path)
+            elif isinstance(stmt, CodeConditional):
+                then_path = []
+                else_path = []
+                self._build_block(stmt.body, then_path)
+                self._build_block(stmt.else_body, else_path)
+                if then_path and else_path:
+                    path.append(CallGraph.ControlNode((
+                        CallGraph.ConditionNode(stmt.condition, False, then_path),
+                        CallGraph.ConditionNode(stmt.condition, True, else_path)
+                    ), False))
+                elif then_path:
+                    path.append(CallGraph.ControlNode((
+                        CallGraph.ConditionNode(stmt.condition, False, then_path),
+                    ), False))
+                elif else_path:
+                    path.append(CallGraph.ControlNode((
+                        CallGraph.ConditionNode(stmt.condition, True, else_path),
+                    ), False))
+            elif isinstance(stmt, CodeLoop):
+                ctrl_path = []
+                self._build_block(stmt.body, ctrl_path)
+                if ctrl_path:
+                    path.append(CallGraph.ControlNode((
+                        CallGraph.ConditionNode(stmt.condition, False, ctrl_path),
+                    ), True))
+            elif isinstance(stmt, CodeSwitch):
+                ctrl_path = []
+                self._build_block(stmt.body, ctrl_path)
+                if ctrl_path:
+                    path.append(CallGraph.ControlNode((
+                        CallGraph.ConditionNode(stmt.condition, False, ctrl_path),
+                    ), False))
+
+    def _build_expression(self, expr, path):
+        assert isinstance(expr, CodeExpression)
+        if isinstance(expr, CodeReference):
+            if isinstance(expr.field_of, CodeExpression):
+                self._build_expression(expr.field_of, path)
+        elif isinstance(expr, CodeOperator):
+            for arg in expr.arguments:
+                if isinstance(arg, CodeExpression):
+                    self._build_expression(arg, path)
+        elif isinstance(expr, CodeFunctionCall):
+            for arg in expr.arguments:
+                if isinstance(arg, CodeExpression):
+                    self._build_expression(arg, path)
+            path.append(CallGraph.CallNode(expr,
+                expr.reference if isinstance(expr.reference, CodeFunction)
+                else None
+            ))
+
+    @staticmethod
+    def _get_all_functions(root):
+        functions = []
+        stack = [root]
+        while stack:
+            current = stack.pop()
+            if isinstance(current, CodeFunction):
+                functions.append(current)
+            elif isinstance(current, CodeClass):
+                for codeobj in current.members:
+                    stack.append(codeobj)
+            elif isinstance(current, (CodeNamespace, CodeGlobalScope)):
+                for codeobj in current.children:
+                    stack.append(codeobj)
+        return functions
+
+    def pretty_str(self, indent = 0):
+        return ("CallGraph(" + self.function.name + ")"
+                + self._pretty_str_path(self.path, indent))
+
+    def _pretty_str_path(self, path, indent):
+        prefix = " " * indent
+        s = ""
+        for node in path:
+            if isinstance(node, CallGraph.CallNode):
+                s += ("\n" + prefix
+                      + ("- " if node.function is None else "+ ")
+                      + node.call.name)
+            elif isinstance(node, CallGraph.ControlNode):
+                s += "\n" + prefix + "? " + ("loop" if node.repeats else "case")
+                p = " " * (indent + 2)
+                for branch in node.branches:
+                    s += ("\n" + p + ("not" if branch.negate else "")
+                          + "{" + str(branch.condition) + "}")
+                    s += self._pretty_str_path(branch.path, indent + 2)
+        return s
 
 
 ###############################################################################
