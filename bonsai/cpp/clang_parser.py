@@ -243,20 +243,20 @@ class CppExpressionBuilder(CppEntityBuilder):
                     data.reference(ref.get_usr(), cppobj)
                 builders = []
                 args = list(self.cursor.get_arguments())
+                for cursor in args:
+                    builders.append(CppExpressionBuilder(cursor,
+                                    self.scope, cppobj))
+                child_is_arg = not args and cppobj.is_constructor
                 for cursor in self.cursor.get_children():
-                    if cursor in args:
-                        builders.append(CppExpressionBuilder(cursor,
-                                        self.scope, cppobj))
-                    elif cursor.kind == CK.MEMBER_REF_EXPR \
-                            and cursor.spelling == self.name:
+                    if (cursor.kind == CK.MEMBER_REF_EXPR
+                            and cursor.spelling == self.name):
                         children = list(cursor.get_children())
                         if not children:
                             continue
                         builders.append(CppExpressionBuilder(children[0],
                                         self.scope, cppobj,
                                         insert = cppobj._set_method))
-                if not args and cppobj.is_constructor:
-                    for cursor in self.cursor.get_children():
+                    elif child_is_arg:
                         builders.append(CppExpressionBuilder(cursor,
                                         self.scope, cppobj))
                 return (cppobj, builders)
