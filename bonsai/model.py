@@ -1360,6 +1360,129 @@ class CodeSwitch(CodeControlFlow):
         return pretty
 
 
+class CodeTryBlock(CodeStatement, CodeStatementGroup):
+    """This class represents a try-catch block statement.
+
+        `try` blocks have a main body of statements, just like regular blocks.
+        Multiple `catch` blocks may be defined to handle specific types of
+        exceptions.
+        Some languages also allow a `finally` block that is executed after
+        the other blocks (either the `try` block, or a `catch` block, when
+        an exception is raised and handled).
+    """
+
+    def __init__(self, scope, parent):
+        """Constructor for try block structures.
+
+        Args:
+            scope (CodeEntity): The program scope where this object belongs.
+            parent (CodeEntity): This object's parent in the program tree.
+        """
+        CodeStatement.__init__(self, scope, parent)
+        self.body = CodeBlock(scope, self, explicit = True)
+        self.catches = []
+        self.finally_body = CodeBlock(scope, self, explicit = True)
+
+    def _set_body(self, body):
+        """Set the main body for try block structure."""
+        assert isinstance(body, CodeBlock)
+        self.body = body
+
+    def _add_catch(self, catch_block):
+        """Add a catch block (exception variable declaration and block)
+            to this try block structure.
+        """
+        assert isinstance(catch_block, self.CodeCatchBlock)
+        self.catches.append(catch_block)
+
+    def _set_finally_body(self, body):
+        """Set the finally body for try block structure."""
+        assert isinstance(body, CodeBlock)
+        self.finally_body = body
+
+    def _children(self):
+        """Yield all direct children of this object."""
+        for codeobj in self.body._children():
+            yield codeobj
+        for catch_block in self.catches:
+            for codeobj in catch_block._children():
+                yield codeobj
+        for codeobj in self.finally_body._children():
+            yield codeobj
+
+    def __len__(self):
+        """Return the length of all blocks combined."""
+        n = len(self.body) + len(self.catches) + len(self.finally_body)
+        for catch_block in self.catches:
+            n += len(catch_block)
+        return n
+
+    def __repr__(self):
+        """Return a string representation of this object."""
+        return "try {} {} {}".format(self.body, self.catches, self.finally_body)
+
+
+    def pretty_str(self, indent = 0):
+        """Return a human-readable string representation of this object.
+
+        Kwargs:
+            indent (int): The amount of spaces to use as indentation.
+        """
+        spaces = " " * indent
+        pretty = spaces + "try:\n"
+        pretty += self.body.pretty_str(indent = indent + 2)
+        for block in self.catches:
+            pretty += "\n" + block.pretty_str(indent)
+        if len(self.finally_body) > 0:
+            pretty += "\n" + spaces + "finally:\n"
+            pretty += self.finally_body.pretty_str(indent = indent + 2)
+        return pretty
+
+
+    class CodeCatchBlock(CodeStatement, CodeStatementGroup):
+        """Helper class for catch statements within a try-catch block."""
+
+        def __init__(self, scope, parent):
+            """Constructor for catch block structures."""
+            CodeStatement.__init__(self, scope, parent)
+            self.declarations = None
+            self.body = CodeBlock(scope, self, explicit = True)
+
+        def _set_declarations(self, declarations):
+            """Set declarations local to this catch block."""
+            assert isinstance(declarations, CodeStatement)
+            self.declarations = declarations
+            declarations.scope = self.body
+
+        def _set_body(self, body):
+            """Set the main body of the catch block."""
+            assert isinstance(body, CodeBlock)
+            self.body = body
+
+        def _children(self):
+            """Yield all direct children of this object."""
+            if isinstance(self.declarations, CodeStatement):
+                yield self.declarations
+            for codeobj in self.body._children():
+                yield codeobj
+
+        def __repr__(self):
+            """Return a string representation of this object."""
+            return "catch ({}) {}".format(self.declarations, self.body)
+
+
+        def pretty_str(self, indent = 0):
+            """Return a human-readable string representation of this object.
+
+            Kwargs:
+                indent (int): The amount of spaces to use as indentation.
+            """
+            return ((" " * indent) + "catch ("
+                    + ("..." if self.declarations is None
+                             else self.declarations.pretty_str())
+                    + "):\n" + self.body.pretty_str(indent = indent + 2))
+
+
 ###############################################################################
 # Helpers
 ###############################################################################

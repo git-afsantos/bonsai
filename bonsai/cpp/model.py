@@ -233,3 +233,7 @@ class CppLoop(CodeLoop):
 
 
 CppSwitch = CodeSwitch
+
+CppTryBlock = CodeTryBlock
+
+CppCatchBlock = CodeTryBlock.CodeCatchBlock

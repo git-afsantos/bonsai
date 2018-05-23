@@ -385,6 +385,7 @@ class CppStatementBuilder(CppEntityBuilder):
         result = result or self._build_control_flow()
         result = result or self._build_jump_statement()
         result = result or self._build_block()
+        result = result or self._build_try_block(data)
         result = result or self._build_unexposed(data)
         result = result or self._build_label_statement(data)
         return result
@@ -474,6 +475,55 @@ class CppStatementBuilder(CppEntityBuilder):
                         for c in self.cursor.get_children()]
             return (cppobj, builders)
         return None
+
+    def _build_try_block(self, data):
+        if self.cursor.kind == CK.CXX_CATCH_STMT:
+            return self._build_catch_block(data)
+        if self.cursor.kind != CK.CXX_TRY_STMT:
+            return None
+        cppobj = CppTryBlock(self.scope, self.parent)
+        cppobj.file = self.file
+        cppobj.line = self.line
+        cppobj.column = self.column
+        builders = []
+        children = list(self.cursor.get_children())
+        assert len(children) >= 1
+        builders.append(CppStatementBuilder(children[0], self.scope, cppobj,
+                                            insert = cppobj._set_body))
+        for i in xrange(1, len(children)):
+            assert children[i].kind == CK.CXX_CATCH_STMT
+            builders.append(CppStatementBuilder(children[i], self.scope, cppobj,
+                                                insert = cppobj._add_catch))
+        return (cppobj, builders)
+
+    def _build_catch_block(self, data):
+        cppobj = CppCatchBlock(self.scope, self.parent)
+        cppobj.file = self.file
+        cppobj.line = self.line
+        cppobj.column = self.column
+        builders = []
+        children = list(self.cursor.get_children())
+        assert len(children) == 1 or len(children) == 2
+        if len(children) > 1:
+            decl = CppDeclaration(cppobj, cppobj)
+            original = self.cursor
+            self.scope = cppobj
+            self.parent = decl
+            self.cursor = children[0]
+            result = self._build_variable(data)
+            if result:
+                decl._add(result[0])
+                decl.file = self.file
+                decl.line = result[0].line
+                decl.column = result[0].column
+                cppobj._set_declarations(decl)
+                builders.extend(result[1])
+            self.cursor = original
+            self.parent = cppobj.parent
+            self.scope = cppobj.scope
+        builders.append(CppStatementBuilder(children[-1], self.scope, cppobj,
+                                            insert = cppobj._set_body))
+        return (cppobj, builders)
 
 
     def _build_while_statement(self):
