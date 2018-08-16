@@ -5,4 +5,4 @@ dist
 bonsai.egg-info
 
 # IDE
-/.idea
+.idea/

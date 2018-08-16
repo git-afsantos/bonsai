@@ -68,25 +68,17 @@ class CodeEntityBuilder(object):
         return codeobj
 
 
-
 class CodeExpressionBuilder(CodeEntityBuilder):
     def __init__(self, scope, parent):
         CodeEntityBuilder.__init__(self, scope, parent)
 
     def build(self, data):
-        result = self._build_literal()
-        if result is None:
-            result = self._build_reference(data)
-        if result is None:
-            result = self._build_operator()
-        if result is None:
-            result = self._build_function_call(data)
-        if result is None:
-            result = self._build_default_argument()
-        if result is None:
-            result = self._build_other(data)
-        return result
-
+        return (self._build_literal()
+                or self._build_reference(data)
+                or self._build_operator()
+                or self._build_function_call(data)
+                or self._build_default_argument()
+                or self._build_other(data))
 
     def _build_literal(self):
         return None
@@ -112,13 +104,11 @@ class CodeStatementBuilder(CodeEntityBuilder):
         CodeEntityBuilder.__init__(self, scope, parent)
 
     def build(self, data):
-        result = self._build_declarations(data)
-        result = result or self._build_expression(data)
-        result = result or self._build_control_flow()
-        result = result or self._build_jump_statement()
-        result = result or self._build_block()
-        return result
-
+        return (self._build_declarations(data)
+                or self._build_expression(data)
+                or self._build_control_flow()
+                or self._build_jump_statement()
+                or self._build_block())
 
     def _build_expression(self, data):
         builder = CodeExpressionBuilder(self.scope, self.parent)
@@ -126,7 +116,7 @@ class CodeStatementBuilder(CodeEntityBuilder):
         if result:
             expression = result[0]
             codeobj = CodeExpressionStatement(self.scope, self.parent,
-                                              expression = expression)
+                                              expression=expression)
             codeobj.file = self.file
             codeobj.line = self.line
             codeobj.column = self.column
@@ -148,19 +138,16 @@ class CodeStatementBuilder(CodeEntityBuilder):
         return None
 
 
-
 class CodeTopLevelBuilder(CodeEntityBuilder):
     def __init__(self, scope, parent, workspace = ""):
         CodeEntityBuilder.__init__(self, scope, parent)
         self.workspace = workspace
 
     def build(self, data):
-        result = self._build_variable(data)
-        result = result or self._build_function(data)
-        result = result or self._build_class(data)
-        result = result or self._build_namespace()
-        return result
-
+        return (self._build_variable(data)
+                or self._build_function(data)
+                or self._build_class(data)
+                or self._build_namespace())
 
     def _build_variable(self, data):
         return None
@@ -175,7 +162,6 @@ class CodeTopLevelBuilder(CodeEntityBuilder):
         return None
 
 
-
 ###############################################################################
 # AST Parsing
 ###############################################################################
@@ -185,10 +171,10 @@ class MultipleDefinitionError(Exception):
 
 class AnalysisData(object):
     def __init__(self):
-        self.entities   = {}    # id -> CodeEntity
-        self._refs      = {}    # id -> [CodeEntity]
+        self.entities = {}    # id -> CodeEntity
+        self._refs = {}       # id -> [CodeEntity]
 
-    def register(self, codeobj, declaration = False):
+    def register(self, codeobj, declaration=False):
         previous = self.entities.get(codeobj.id)
         if declaration and not previous is None:
             codeobj._definition = previous
@@ -203,8 +189,10 @@ class AnalysisData(object):
             for ref in previous.references:
                 codeobj.references.append(ref)
                 ref.reference = codeobj
+
             previous.references = []
         self.entities[codeobj.id] = codeobj
+
         if codeobj.id in self._refs:
             for ref in self._refs[codeobj.id]:
                 codeobj.references.append(ref)
@@ -213,11 +201,11 @@ class AnalysisData(object):
 
     def reference(self, id, ref):
         codeobj = self.entities.get(id)
-        if not codeobj is None:
+        if codeobj is not None:
             codeobj.references.append(ref)
             ref.reference = codeobj
         else:
-            if not id in self._refs:
+            if id not in self._refs:
                 self._refs[id] = []
             self._refs[id].append(ref)
             ref.reference = id
