@@ -103,7 +103,7 @@ class CppEntityBuilder(object):
 
     def _lookup_parent(self, cls):
         cppobj = self.parent
-        while not cppobj is None and not isinstance(cppobj, cls):
+        while cppobj is not None and not isinstance(cppobj, cls):
             cppobj = cppobj.parent
         return cppobj
 
@@ -783,6 +783,9 @@ class CppTopLevelBuilder(CppEntityBuilder):
                 or self._build_namespace())
 
     def _build_function(self, data):
+        if self.cursor.kind not in CppTopLevelBuilder._FUNCTIONS:
+            return None
+
         # NOTE: function and method declarations only have children
         #       for their parameters. Only definitions have more.
         #       Skip declarations?
