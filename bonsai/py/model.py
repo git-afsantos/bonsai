@@ -22,9 +22,7 @@
 # Imports
 ###############################################################################
 
-from ..model import (CodeEntity, CodeStatementGroup, CodeExpression,
-                     CodeStatement, CodeOperator, CodeJumpStatement, SomeValue,
-                     CodeReference, CodeVariable, CodeFunctionCall)
+from ..model import *
 
 ###############################################################################
 # Language Model
@@ -35,6 +33,11 @@ PyEntity = CodeEntity
 PyStatementGroup = CodeStatementGroup
 
 PyJumpStatement = CodeJumpStatement
+
+
+class PyModule(CodeGlobalScope):
+    def _add(self, codeobj):
+        self.children.append(codeobj)
 
 
 class PyStatement(CodeStatement):
@@ -97,7 +100,7 @@ class PyOperator(CodeOperator, PyExpression):
                       '>>', '|', '^', '&', 'in', 'not in', 'is', 'is not')
 
     def __init__(self, scope, parent, name, args=None, result=None,
-                 from_compare=True, paren=False):
+                 from_compare=False, paren=False):
         CodeOperator.__init__(self, scope, parent, name, result,
                               args=args, paren=paren)
         self.from_compare = from_compare
