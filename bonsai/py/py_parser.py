@@ -24,16 +24,20 @@
 
 import ast
 
+import bonsai.model as bonsai_model
+import bonsai.py.model as py_model
+
 from collections import deque
 from inspect import getmembers, isroutine
-
-from ..model import CodeExpressionStatement
-from ..py.model import PyModule, PyOperator
-
 
 ###############################################################################
 # Builder
 ###############################################################################
+
+
+def identity(x):
+    return x
+
 
 operator_names = {
     ast.Add: '+',
@@ -49,10 +53,6 @@ class PyBonsaiBuilder(object):
 
     """
 
-    def __call_node_method(self, prefix, node):
-        method_name = prefix + node.__class__.__name__
-        return getattr(self, method_name, lambda n: n)(node)
-
     def __init__(self, parent=None, scope=None):
         self.children = deque()
 
@@ -63,24 +63,9 @@ class PyBonsaiBuilder(object):
         self.children.append(child)
         return self
 
-    def build(self, py_node):
-        return self.__call_node_method('build_', py_node)
-
     def finalize(self, bonsai_node):
-        return self.__call_node_method('finalize_', bonsai_node)
-
-    def build_BinOp(self, py_node):
-        op_name = operator_names[py_node.op.__class__]
-        return PyOperator(self.scope, self.parent, op_name)
-
-    def build_Expr(self, py_node):
-        return CodeExpressionStatement(self.scope, self.parent, None)
-
-    def build_Module(self, py_node):
-        return PyModule()
-
-    def build_Num(self, py_node):
-        return py_node.n
+        method_name = 'finalize_' + bonsai_node.__class__.__name__
+        return getattr(self, method_name, identity)(bonsai_node)
 
     def finalize_PyOperator(self, bonsai_node):
         for child in self.children:
@@ -109,47 +94,57 @@ class BuilderVisitor(ast.NodeVisitor):
         def builder_visit(node):
 
             # start to build this node
-            bonsai_node = self.builder.build(node)
+            bonsai_node, children_scope = visitor_method(node)
 
             # build the children recursively
-            defines_scope = visitor_method(node)
-            children_scope = self.builder.scope if not defines_scope else None
-            children_builder = PyBonsaiBuilder(bonsai_node, children_scope)
-            children_visitor = cls(children_builder)
+            children_visitor = cls(bonsai_node, children_scope)
             children_visitor.generic_visit(node)
 
             # finalize this node
-            bonsai_node = children_builder.finalize(bonsai_node)
+            bonsai_node = children_visitor.builder.finalize(bonsai_node)
 
             # return to parent
             self.builder.add_child(bonsai_node)
 
         return builder_visit
 
-    def __init__(self, builder):
+    def __init__(self, parent=None, scope=None):
         ast.NodeVisitor.__init__(self)
 
-        self.builder = builder
+        self.builder = PyBonsaiBuilder(parent, scope)
 
         for (name, method) in getmembers(self, isroutine):
             if name.startswith('visit_'):
                 setattr(self, name, self.with_builder(self, method))
 
+    @property
+    def scope(self):
+        return self.builder.scope
+
+    @property
+    def parent(self):
+        return self.builder.parent
+
     def build(self, node):
         self.visit(node)
         return self.builder.children[0]
 
-    def visit_BinOp(self, node):
-        return False
+    def visit_BinOp(self, py_node):
+        op_name = operator_names[py_node.op.__class__]
+        bonsai_node = py_model.PyOperator(self.scope, self.parent, op_name)
+        return bonsai_node, self.scope
 
-    def visit_Expr(self, node):
-        return False
+    def visit_Expr(self, py_node):
+        bonsai_node = bonsai_model.CodeExpressionStatement(self.scope,
+                                                           self.parent, None)
+        return bonsai_node, self.scope
 
-    def visit_Module(self, node):
-        return True
+    def visit_Module(self, py_node):
+        bonsai_node = py_model.PyModule()
+        return bonsai_node, bonsai_node
 
-    def visit_Num(self, node):
-        return False
+    def visit_Num(self, py_node):
+        return py_node.n, self.scope
 
 
 ###############################################################################
@@ -164,7 +159,7 @@ file_name = realpath(join(dirname(abspath(__file__)), '..', '..', 'examples',
 with open(file_name) as source:
     content = source.read()
     tree = ast.parse(content, file_name)
-    bonsai_tree = BuilderVisitor(PyBonsaiBuilder()).build(tree)
+    bonsai_tree = BuilderVisitor().build(tree)
 
     print(bonsai_tree.pretty_str())
 
