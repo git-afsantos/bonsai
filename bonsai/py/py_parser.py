@@ -216,6 +216,11 @@ class BuilderVisitor(ast.NodeVisitor):
                                                            self.parent, None)
         return bonsai_node, self.scope
 
+    def visit_IfExp(self, py_node):
+        bonsai_node = py_model.PyOperator(self.scope, self.parent,
+                                          'conditional-operator')
+        return bonsai_node, self.scope
+
     def visit_Module(self, py_node):
         bonsai_node = py_model.PyModule()
         return bonsai_node, bonsai_node
@@ -228,6 +233,10 @@ class BuilderVisitor(ast.NodeVisitor):
 
     def visit_Str(self, py_node):
         return py_node.s, self.scope
+
+    def visit_UnaryOp(self, py_node):
+        return self._make_operator(py_node)
+
 
 ###############################################################################
 # Rest

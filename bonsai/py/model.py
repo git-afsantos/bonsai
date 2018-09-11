@@ -109,6 +109,18 @@ class PyOperator(CodeOperator, PyExpression):
     def is_assignment(self):
         return False
 
+    def __repr__(self):
+        return ('[{0}] if({2})then({1})else({3})'.format(self.result,
+                                                         *self.arguments)
+                if self.is_ternary
+                else CodeOperator.__repr__(self))
+
+    def pretty_str(self, indent=0):
+        print(self.is_ternary)
+        return ('if {1} then {0} else {2}'.format(*self.arguments)
+                if self.is_ternary
+                else CodeOperator.pretty_str(self, indent=indent))
+
 
 class PyComprehension(PyExpression):
     PARENS = {
