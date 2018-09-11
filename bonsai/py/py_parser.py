@@ -253,7 +253,7 @@ with open(file_name) as source:
     bonsai_tree = BuilderVisitor().build(tree)
 
     # print(ast.dump(tree))
-    # print(bonsai_tree.pretty_str())
+    print(bonsai_tree.pretty_str())
 
     for child in bonsai_tree.walk_preorder():
         print('{} ({}): {!r} -- parent: {!r}'.format(

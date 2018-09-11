@@ -116,10 +116,13 @@ class PyOperator(CodeOperator, PyExpression):
                 else CodeOperator.__repr__(self))
 
     def pretty_str(self, indent=0):
-        print(self.is_ternary)
-        return ('if {1} then {0} else {2}'.format(*self.arguments)
-                if self.is_ternary
-                else CodeOperator.pretty_str(self, indent=indent))
+        if self.is_ternary:
+            return 'if {1} then {0} else {2}'.format(*self.arguments)
+
+        if self.name == 'not':
+            return 'not {}'.format(*self.arguments)
+
+        return CodeOperator.pretty_str(self, indent=indent)
 
 
 class PyComprehension(PyExpression):
