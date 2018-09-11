@@ -31,6 +31,43 @@ from collections import deque
 from inspect import getmembers, isroutine
 
 ###############################################################################
+# Transformer
+###############################################################################
+
+
+class Bool(ast.expr):
+    def __init__(self, name_node):
+        ast.expr.__init__(self, lineno=name_node.lineno,
+                          col_offset=name_node.col_offset)
+        self._fields = self._fields + ('b',)
+
+        self.b = True if name_node.id == 'True' else False
+
+
+class NoneAST(ast.expr):
+    def __init__(self, name_node):
+        ast.expr.__init__(self, lineno=name_node.lineno,
+                          col_offset=name_node.col_offset)
+
+
+class ASTPreprocessor(ast.NodeTransformer):
+    name_mappings = {
+        'False': Bool,
+        'None': NoneAST,
+        'True': Bool,
+    }
+
+    def visit_Compare(self, node):
+        return self.generic_visit(node)
+
+    def visit_Name(self, node):
+        try:
+            return self.name_mappings[node.id](node)
+        except KeyError:
+            return node
+
+
+###############################################################################
 # Builder
 ###############################################################################
 
@@ -41,7 +78,33 @@ def identity(x):
 
 operator_names = {
     ast.Add: '+',
+    ast.And: 'and',
+    ast.BitAnd: '&',
+    ast.BitOr: '|',
+    ast.BitXor: '^',
+    ast.Div: '/',
+    ast.Eq: '==',
+    ast.FloorDiv: '//',
+    ast.Gt: '>',
+    ast.GtE: '>=',
+    ast.In: 'in',
+    ast.Invert: '~',
+    ast.Is: 'is',
+    ast.IsNot: 'is not',
+    ast.LShift: '<<',
+    ast.Lt: '<',
+    ast.LtE: '<=',
+    ast.Mod: '%',
+    ast.Mult: '*',
+    ast.Not: 'not',
+    ast.NotEq: '!=',
+    ast.NotIn: 'not in',
+    ast.Or: 'or',
+    ast.Pow: '**',
+    ast.RShift: '>>',
     ast.Sub: '-',
+    ast.UAdd: '+',
+    ast.USub: '-',
 }
 
 
@@ -108,6 +171,11 @@ class BuilderVisitor(ast.NodeVisitor):
 
         return builder_visit
 
+    def _make_operator(self, py_node):
+        op_name = operator_names[py_node.op.__class__]
+        bonsai_node = py_model.PyOperator(self.scope, self.parent, op_name)
+        return bonsai_node, self.scope
+
     def __init__(self, parent=None, scope=None):
         ast.NodeVisitor.__init__(self)
 
@@ -130,7 +198,16 @@ class BuilderVisitor(ast.NodeVisitor):
         return self.builder.children[0]
 
     def visit_BinOp(self, py_node):
-        op_name = operator_names[py_node.op.__class__]
+        return self._make_operator(py_node)
+
+    def visit_Bool(self, py_node):
+        return py_node.b, self.scope
+
+    def visit_BoolOp(self, py_node):
+        return self._make_operator(py_node)
+
+    def visit_Compare(self, py_node):
+        op_name = operator_names[py_node.ops[0].__class__]
         bonsai_node = py_model.PyOperator(self.scope, self.parent, op_name)
         return bonsai_node, self.scope
 
@@ -143,9 +220,14 @@ class BuilderVisitor(ast.NodeVisitor):
         bonsai_node = py_model.PyModule()
         return bonsai_node, bonsai_node
 
+    def visit_NoneAST(self, py_node):
+        return 'None', self.scope
+
     def visit_Num(self, py_node):
         return py_node.n, self.scope
 
+    def visit_Str(self, py_node):
+        return py_node.s, self.scope
 
 ###############################################################################
 # Rest
@@ -158,10 +240,11 @@ file_name = realpath(join(dirname(abspath(__file__)), '..', '..', 'examples',
 
 with open(file_name) as source:
     content = source.read()
-    tree = ast.parse(content, file_name)
+    tree = ASTPreprocessor().visit(ast.parse(content, file_name))
     bonsai_tree = BuilderVisitor().build(tree)
 
-    print(bonsai_tree.pretty_str())
+    # print(ast.dump(tree))
+    # print(bonsai_tree.pretty_str())
 
     for child in bonsai_tree.walk_preorder():
         print('{} ({}): {!r} -- parent: {!r}'.format(
