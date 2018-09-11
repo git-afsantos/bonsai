@@ -86,9 +86,9 @@ class PyDel(PyStatement):
 
 PyExpression = CodeExpression
 
-PyReference = CodeReference
+PyExpressionStatement = CodeExpressionStatement
 
-PyValue = SomeValue
+PyReference = CodeReference
 
 PyVariable = CodeVariable
 
@@ -133,12 +133,12 @@ class PyComprehension(PyExpression):
         'set': ('{', '}'),
     }
 
-    def __init__(self, scope, parent, name, expr, iters, ifs=None, result=None,
-                 paren=False):
+    def __init__(self, scope, parent, name, expr, iters, filters=None,
+                 result=None, paren=False):
         PyExpression.__init__(self, scope, parent, name, result, paren)
         self.expr = expr
         self.iters = iters
-        self.ifs = ifs
+        self.filters = filters
 
     def pretty_str(self, indent=0):
         inner_indent = ' ' * (indent + 1)
@@ -151,7 +151,7 @@ class PyComprehension(PyExpression):
         )
         filters = '\n'.join(
             '{}if {}'.format(inner_indent, cond.pretty_str(indent=0))
-            for cond in self.ifs
+            for cond in self.filters
         )
         parens = self.PARENS[self.name]
 
@@ -173,7 +173,30 @@ class PyFunctionCall(CodeFunctionCall, PyExpression):
         self.star_args = star_args
         self.kw_args = kw_args
 
+    def pretty_str(self, indent=0):
+        args = filter(lambda s: s != '', (
+            ', '.join(map(pretty_str, self.arguments)),
+            ', '.join(map(pretty_str, self.named_args)),
+            ('*{}'.format(pretty_str(self.star_args))
+                if self.star_args is not None
+                else ''),
+            ('**{}'.format(pretty_str(self.kw_args))
+                if self.kw_args is not None
+                else ''),
+        ))
+        return '{}({})'.format(self.name, ', '.join(args))
 
-class PyCompositeValue(PyValue):
+
+class PyKeyword(PyExpression):
+    def __init__(self, scope, parent, name, value=None, result=None):
+        PyExpression.__init__(self, scope, parent, name, result, False)
+        self.value = value
+
+    def pretty_str(self, indent=0):
+        return '{}={}'.format(self.name, pretty_str(self.value))
+
+
+class PyCompositeValue(PyExpression):
     def __init__(self):
         pass
+

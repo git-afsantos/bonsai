@@ -23,12 +23,12 @@
 ###############################################################################
 
 import ast
+import re
 
-import bonsai.model as bonsai_model
 import bonsai.py.model as py_model
 
-from collections import deque
 from inspect import getmembers, isroutine
+
 
 ###############################################################################
 # Transformer
@@ -116,30 +116,73 @@ class PyBonsaiBuilder(object):
 
     """
 
-    def __init__(self, parent=None, scope=None):
-        self.children = deque()
+    bonsai_prefix = re.compile('^Code')
+
+    @classmethod
+    def _make_class_name(cls, bonsai_node):
+        return re.sub(cls.bonsai_prefix, 'Py', bonsai_node.__class__.__name__)
+
+    def __init__(self, parent=None, scope=None, props=None):
+        self.children = []
 
         self.parent = parent
         self.scope = scope or parent
+        self.props = props or {}
+
+    def __getattr__(self, item):
+        try:
+            return self.props[item]
+        except KeyError:
+            raise AttributeError('aaaa')
 
     def add_child(self, child):
         self.children.append(child)
         return self
 
     def finalize(self, bonsai_node):
-        method_name = 'finalize_' + bonsai_node.__class__.__name__
+        method_name = 'finalize_' + self._make_class_name(bonsai_node)
         return getattr(self, method_name, identity)(bonsai_node)
 
-    def finalize_PyOperator(self, bonsai_node):
+    def finalize_PyComprehension(self, bonsai_node):
+        bonsai_node.expr = self.children[0]
+        bonsai_node.iters = self.children[1]
+        bonsai_node.filters = self.children[2]
+        return bonsai_node
+
+    def finalize_PyExpressionStatement(self, bonsai_node):
+        bonsai_node.expression = self.children[0]
+        return bonsai_node
+
+    def finalize_PyFunctionCall(self, bonsai_node):
+        bonsai_node.name = self.children[0].name
+
+        start, end = 1, 1 + self.args_count
+        for arg in self.children[start:end]:
+            bonsai_node._add(arg)
+
+        start, end = end, end + self.kwargs_count
+        bonsai_node.named_args = tuple(self.children[start:end])
+
+        if self.has_starargs:
+            start, end = end, end + 1
+            bonsai_node.star_args = self.children[start]
+
+        if self.has_kwargs:
+            start = end
+            bonsai_node.kw_args = self.children[start]
+
+        return bonsai_node
+
+    def finalize_PyKeyword(self, bonsai_node):
+        bonsai_node.value = self.children[0]
+        return bonsai_node
+
+    def finalize_PyModule(self, bonsai_node):
         for child in self.children:
             bonsai_node._add(child)
         return bonsai_node
 
-    def finalize_CodeExpressionStatement(self, bonsai_node):
-        bonsai_node.expression = self.children[0]
-        return bonsai_node
-
-    def finalize_PyModule(self, bonsai_node):
+    def finalize_PyOperator(self, bonsai_node):
         for child in self.children:
             bonsai_node._add(child)
         return bonsai_node
@@ -158,12 +201,11 @@ class BuilderVisitor(ast.NodeVisitor):
     @classmethod
     def with_builder(cls, self, visitor_method):
         def builder_visit(node):
-
             # start to build this node
-            bonsai_node, children_scope = visitor_method(node)
+            bonsai_node, children_scope, props = visitor_method(node)
 
             # build the children recursively
-            children_visitor = cls(bonsai_node, children_scope)
+            children_visitor = cls(bonsai_node, children_scope, props)
             children_visitor.generic_visit(node)
 
             # finalize this node
@@ -177,12 +219,12 @@ class BuilderVisitor(ast.NodeVisitor):
     def _make_operator(self, py_node):
         op_name = operator_names[py_node.op.__class__]
         bonsai_node = py_model.PyOperator(self.scope, self.parent, op_name)
-        return bonsai_node, self.scope
+        return bonsai_node, self.scope, None
 
-    def __init__(self, parent=None, scope=None):
+    def __init__(self, parent=None, scope=None, props=None):
         ast.NodeVisitor.__init__(self)
 
-        self.builder = PyBonsaiBuilder(parent, scope)
+        self.builder = PyBonsaiBuilder(parent, scope, props)
 
         for (name, method) in getmembers(self, isroutine):
             if name.startswith('visit_'):
@@ -204,43 +246,66 @@ class BuilderVisitor(ast.NodeVisitor):
         return self._make_operator(py_node)
 
     def visit_Bool(self, py_node):
-        return py_node.b, self.scope
+        return py_node.b, self.scope, None
 
     def visit_BoolOp(self, py_node):
         return self._make_operator(py_node)
 
+    def visit_Call(self, py_node):
+        # (lambda n: n)(9) is not handled yet
+
+        bonsai_node = py_model.PyFunctionCall(self.scope, self.parent, None)
+        props = {
+            'args_count': len(py_node.args or []),
+            'kwargs_count': len(py_node.keywords or []),
+            'has_starargs': py_node.starargs is not None,
+            'has_kwargs': py_node.kwargs is not None,
+        }
+        return bonsai_node, self.scope, props
+
     def visit_Compare(self, py_node):
         op_name = operator_names[py_node.ops[0].__class__]
         bonsai_node = py_model.PyOperator(self.scope, self.parent, op_name)
-        return bonsai_node, self.scope
+        return bonsai_node, self.scope, None
 
     def visit_Expr(self, py_node):
-        bonsai_node = bonsai_model.CodeExpressionStatement(self.scope,
-                                                           self.parent, None)
-        return bonsai_node, self.scope
+        bonsai_node = py_model.PyExpressionStatement(self.scope, self.parent,
+                                                     None)
+        return bonsai_node, self.scope, None
 
     def visit_IfExp(self, py_node):
         bonsai_node = py_model.PyOperator(self.scope, self.parent,
                                           'conditional-operator')
-        return bonsai_node, self.scope
+        return bonsai_node, self.scope, None
+
+    def visit_keyword(self, py_node):
+        bonsai_node = py_model.PyKeyword(self.scope, self.parent, py_node.arg)
+        return bonsai_node, self.scope, None
+
+    def visit_ListComp(self, py_node):
+        bonsai_node = py_model.PyComprehension(self.scope, self.parent,
+                                               'list-comprehension', None,
+                                               None)
+        return bonsai_node, bonsai_node, None
 
     def visit_Module(self, py_node):
         bonsai_node = py_model.PyModule()
-        return bonsai_node, bonsai_node
+        return bonsai_node, bonsai_node, None
 
     def visit_Name(self, py_node):
+        # Still need to handle definitions (just use py_node.ctx)
         bonsai_node = py_model.PyReference(self.scope, self.parent, py_node.id,
                                            None)
-        return bonsai_node, self.scope
+        return bonsai_node, self.scope, None
 
     def visit_NoneAST(self, py_node):
-        return 'None', self.scope
+        return 'None', self.scope, None
 
     def visit_Num(self, py_node):
-        return py_node.n, self.scope
+        return py_node.n, self.scope, None
 
     def visit_Str(self, py_node):
-        return py_node.s, self.scope
+        return py_node.s, self.scope, None
 
     def visit_UnaryOp(self, py_node):
         return self._make_operator(py_node)
@@ -252,6 +317,7 @@ class BuilderVisitor(ast.NodeVisitor):
 
 
 from os.path import abspath, dirname, join, realpath
+
 file_name = realpath(join(dirname(abspath(__file__)), '..', '..', 'examples',
                           'py', 'examples.py'))
 
@@ -263,9 +329,9 @@ with open(file_name) as source:
     # print(ast.dump(tree))
     print(bonsai_tree.pretty_str())
 
-    for child in bonsai_tree.walk_preorder():
-        print('{} ({}): {!r} -- parent: {!r}'.format(
-                type(child).__name__,
-                id(child) % 100000,
-                child,
-                None if child.parent is None else id(child.parent) % 100000))
+    # for child in bonsai_tree.walk_preorder():
+    #     print('{} ({}): {!r} -- parent: {!r}'.format(
+    #             type(child).__name__,
+    #             id(child) % 100000,
+    #             child,
+    #             None if child.parent is None else id(child.parent) % 100000))
