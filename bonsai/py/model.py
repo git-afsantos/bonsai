@@ -184,7 +184,12 @@ class PyFunctionCall(CodeFunctionCall, PyExpression):
                 if self.kw_args is not None
                 else ''),
         ))
-        return '{}({})'.format(self.name, ', '.join(args))
+
+        name = ('{}.{}'.format(pretty_str(self.method_of), self.name)
+                if self.method_of is not None
+                else self.name)
+
+        return '{}({})'.format(name, ', '.join(args))
 
 
 class PyKeyword(PyExpression):

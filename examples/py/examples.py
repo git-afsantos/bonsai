@@ -48,6 +48,9 @@ xrange(aaa=10, **kwargs)
 # Function call -- all together
 xrange(10, aaa=20, *args, **kwargs)
 
+# Method call
+x.m(2)
+
 # [
 #     x + 1
 #     for x in xrange(10)

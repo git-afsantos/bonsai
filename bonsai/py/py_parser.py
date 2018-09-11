@@ -133,7 +133,7 @@ class PyBonsaiBuilder(object):
         try:
             return self.props[item]
         except KeyError:
-            raise AttributeError('aaaa')
+            raise AttributeError()
 
     def add_child(self, child):
         self.children.append(child)
@@ -154,7 +154,10 @@ class PyBonsaiBuilder(object):
         return bonsai_node
 
     def finalize_PyFunctionCall(self, bonsai_node):
-        bonsai_node.name = self.children[0].name
+        function_name = self.children[0]
+        bonsai_node.name = function_name.name
+        if function_name.field_of is not None:
+            bonsai_node._set_method(function_name.field_of)
 
         start, end = 1, 1 + self.args_count
         for arg in self.children[start:end]:
@@ -188,6 +191,9 @@ class PyBonsaiBuilder(object):
         return bonsai_node
 
     def finalize_PyReference(self, bonsai_node):
+        if self.children:
+            bonsai_node._set_field(self.children[0])
+
         return bonsai_node
 
 
@@ -242,6 +248,12 @@ class BuilderVisitor(ast.NodeVisitor):
         self.visit(node)
         return self.builder.children[0]
 
+    def visit_Attribute(self, py_node):
+        # Still need to handle definitions (just use py_node.ctx)
+        bonsai_node = py_model.PyReference(self.scope, self.parent,
+                                           py_node.attr, None)
+        return bonsai_node, self.scope, None
+
     def visit_BinOp(self, py_node):
         return self._make_operator(py_node)
 
@@ -256,8 +268,8 @@ class BuilderVisitor(ast.NodeVisitor):
 
         bonsai_node = py_model.PyFunctionCall(self.scope, self.parent, None)
         props = {
-            'args_count': len(py_node.args or []),
-            'kwargs_count': len(py_node.keywords or []),
+            'args_count': len(py_node.args or ()),
+            'kwargs_count': len(py_node.keywords or ()),
             'has_starargs': py_node.starargs is not None,
             'has_kwargs': py_node.kwargs is not None,
         }
