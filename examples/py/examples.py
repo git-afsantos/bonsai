@@ -7,3 +7,4 @@ False is None
 1 is not 'aaaa'
 not True
 'booh' if False else 'yeah'
+x + 2

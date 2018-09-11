@@ -144,6 +144,9 @@ class PyBonsaiBuilder(object):
             bonsai_node._add(child)
         return bonsai_node
 
+    def finalize_PyReference(self, bonsai_node):
+        return bonsai_node
+
 
 ###############################################################################
 # Visitor
@@ -224,6 +227,11 @@ class BuilderVisitor(ast.NodeVisitor):
     def visit_Module(self, py_node):
         bonsai_node = py_model.PyModule()
         return bonsai_node, bonsai_node
+
+    def visit_Name(self, py_node):
+        bonsai_node = py_model.PyReference(self.scope, self.parent, py_node.id,
+                                           None)
+        return bonsai_node, self.scope
 
     def visit_NoneAST(self, py_node):
         return 'None', self.scope
