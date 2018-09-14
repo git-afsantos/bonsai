@@ -51,7 +51,57 @@ xrange(10, aaa=20, *args, **kwargs)
 # Method call
 x.m(2)
 
-# [
-#     x + 1
-#     for x in xrange(10)
-# ]
+[
+    x + 1
+    for x in xrange(10)
+]
+[
+    x + 1
+    for x in xrange(10)
+    if x % 5
+]
+[
+    x + 1
+    for x in xrange(10)
+    if x % 5
+    if x % 2
+]
+[
+    x + 1
+    for x in xrange(10)
+    if x % 5
+    if x % 2
+    for y in xrange(25)
+]
+[
+    x + 1
+    for x in xrange(10)
+    if x % 5
+    if x % 2
+    for y in xrange(25)
+    if y in xrange(2, 3)
+]
+{
+    x + 1
+    for x in xrange(10)
+    if x % 5
+    if x % 2
+    for y in xrange(25)
+    if y in xrange(2, 3)
+}
+(
+    x + 1
+    for x in xrange(10)
+    if x % 5
+    if x % 2
+    for y in xrange(25)
+    if y in xrange(2, 3)
+)
+{
+    x + 1: x
+    for x in xrange(10)
+    if x % 5
+    if x % 2
+    for y in xrange(25)
+    if y in xrange(2, 3)
+}

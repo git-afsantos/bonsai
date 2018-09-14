@@ -107,6 +107,13 @@ operator_names = {
     ast.USub: '-',
 }
 
+comprehension_name = {
+    ast.DictComp: 'dict',
+    ast.GeneratorExp: 'generator',
+    ast.ListComp: 'list',
+    ast.SetComp: 'set',
+}
+
 
 class PyBonsaiBuilder(object):
     """
@@ -144,9 +151,21 @@ class PyBonsaiBuilder(object):
         return getattr(self, method_name, identity)(bonsai_node)
 
     def finalize_PyComprehension(self, bonsai_node):
-        bonsai_node.expr = self.children[0]
-        bonsai_node.iters = self.children[1]
-        bonsai_node.filters = self.children[2]
+        if 'dict' in bonsai_node.name:
+            bonsai_node.expr = py_model.PyKeyValue(bonsai_node, bonsai_node,
+                                                   *self.children[:2])
+            first_iter_index = 2
+        else:
+            bonsai_node.expr = self.children[0]
+            first_iter_index = 1
+
+        bonsai_node.iters = self.children[first_iter_index:]
+        return bonsai_node
+
+    def finalize_PyComprehensionIterator(self, bonsai_node):
+        bonsai_node.target = self.children[0]
+        bonsai_node.iter = self.children[1]
+        bonsai_node.filters = tuple(self.children[2:])
         return bonsai_node
 
     def finalize_PyExpressionStatement(self, bonsai_node):
@@ -176,7 +195,7 @@ class PyBonsaiBuilder(object):
 
         return bonsai_node
 
-    def finalize_PyKeyword(self, bonsai_node):
+    def finalize_PyKeyValue(self, bonsai_node):
         bonsai_node.value = self.children[0]
         return bonsai_node
 
@@ -221,6 +240,12 @@ class BuilderVisitor(ast.NodeVisitor):
             self.builder.add_child(bonsai_node)
 
         return builder_visit
+
+    def _make_comprehension(self, py_node):
+        comp_name = comprehension_name[py_node.__class__] + '_comprehension'
+        bonsai_node = py_model.PyComprehension(self.scope, self.parent,
+                                               comp_name, None, None)
+        return bonsai_node, self.scope, None
 
     def _make_operator(self, py_node):
         op_name = operator_names[py_node.op.__class__]
@@ -280,6 +305,13 @@ class BuilderVisitor(ast.NodeVisitor):
         bonsai_node = py_model.PyOperator(self.scope, self.parent, op_name)
         return bonsai_node, self.scope, None
 
+    def visit_comprehension(self, py_node):
+        bonsai_node = py_model.PyComprehensionIterator(self.parent, None, None)
+        return bonsai_node, self.scope, None
+
+    def visit_DictComp(self, py_node):
+        return self._make_comprehension(py_node)
+
     def visit_Expr(self, py_node):
         bonsai_node = py_model.PyExpressionStatement(self.scope, self.parent,
                                                      None)
@@ -291,14 +323,14 @@ class BuilderVisitor(ast.NodeVisitor):
         return bonsai_node, self.scope, None
 
     def visit_keyword(self, py_node):
-        bonsai_node = py_model.PyKeyword(self.scope, self.parent, py_node.arg)
+        bonsai_node = py_model.PyKeyValue(self.scope, self.parent, py_node.arg)
         return bonsai_node, self.scope, None
 
+    def visit_GeneratorExp(self, py_node):
+        return self._make_comprehension(py_node)
+
     def visit_ListComp(self, py_node):
-        bonsai_node = py_model.PyComprehension(self.scope, self.parent,
-                                               'list-comprehension', None,
-                                               None)
-        return bonsai_node, bonsai_node, None
+        return self._make_comprehension(py_node)
 
     def visit_Module(self, py_node):
         bonsai_node = py_model.PyModule()
@@ -315,6 +347,9 @@ class BuilderVisitor(ast.NodeVisitor):
 
     def visit_Num(self, py_node):
         return py_node.n, self.scope, None
+
+    def visit_SetComp(self, py_node):
+        return self._make_comprehension(py_node)
 
     def visit_Str(self, py_node):
         return py_node.s, self.scope, None

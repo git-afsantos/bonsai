@@ -125,42 +125,6 @@ class PyOperator(CodeOperator, PyExpression):
         return CodeOperator.pretty_str(self, indent=indent)
 
 
-class PyComprehension(PyExpression):
-    PARENS = {
-        'dict': ('{', '}'),
-        'generator': ('(', ')'),
-        'list': ('[', ']'),
-        'set': ('{', '}'),
-    }
-
-    def __init__(self, scope, parent, name, expr, iters, filters=None,
-                 result=None, paren=False):
-        PyExpression.__init__(self, scope, parent, name, result, paren)
-        self.expr = expr
-        self.iters = iters
-        self.filters = filters
-
-    def pretty_str(self, indent=0):
-        inner_indent = ' ' * (indent + 1)
-        indent = ' ' * indent
-
-        iters = '\n'.join(
-            '{}for {} in {}'.format(inner_indent, decls.pretty_str(indent=0),
-                                    iterable.pretty_str(indent=0))
-            for decls, iterable in self.iters
-        )
-        filters = '\n'.join(
-            '{}if {}'.format(inner_indent, cond.pretty_str(indent=0))
-            for cond in self.filters
-        )
-        parens = self.PARENS[self.name]
-
-        return '{open}\n{exp}\n{iters}\n{ifs}\n{indent}{close}'.format(
-                open=parens[0], exp=self.expr.pretty_str(indent=inner_indent),
-                iters=iters, ifs=filters, indent=indent, close=parens[1]
-        )
-
-
 class PyFunctionCall(CodeFunctionCall, PyExpression):
     def __init__(self, scope, parent, name, pos_args=(), named_args=(),
                  star_args=None, kw_args=None, result=None, paren=False):
@@ -192,13 +156,67 @@ class PyFunctionCall(CodeFunctionCall, PyExpression):
         return '{}({})'.format(name, ', '.join(args))
 
 
-class PyKeyword(PyExpression):
+class PyComprehension(PyExpression):
+    parens = {
+        'dict': ('{', '}'),
+        'generator': ('(', ')'),
+        'list': ('[', ']'),
+        'set': ('{', '}'),
+    }
+    name_suffix_length = len('-comprehension')
+
+    def __init__(self, scope, parent, name, expr, iters, result=None,
+                 paren=False):
+        PyExpression.__init__(self, scope, parent, name, result, paren)
+        self.expr = expr
+        self.iters = iters
+
+    def pretty_str(self, indent=0):
+        parens = self.parens[self.name[0:-self.name_suffix_length]]
+        iters = '\n'.join(
+            pretty_str(iter, indent + 4)
+            for iter in self.iters
+        )
+
+        return '{open}\n{exp}\n{iters}\n{indent}{close}'.format(
+                open=parens[0], exp=pretty_str(self.expr, indent=indent + 4),
+                iters=iters, indent=' ' * indent, close=parens[1]
+        )
+
+
+class PyComprehensionIterator(PyExpression):
+    def __init__(self, parent, target, iter, filters=()):
+        assert(isinstance(parent, PyComprehension))
+        PyExpression.__init__(self, parent, parent, 'comprehension-iterator',
+                              None)
+        self.target = target
+        self.iter = iter
+        self.filters = filters
+
+    def pretty_str(self, indent=0):
+        indent = ' ' * indent
+
+        filters = (''
+                   if not self.filters
+                   else '\n' + '\n'.join(
+                       '{}if {}'.format(indent, pretty_str(cond))
+                       for cond in self.filters)
+                   )
+
+        return '{}for {} in {}{}'.format(indent,
+                                         pretty_str(self.target),
+                                         pretty_str(self.iter),
+                                         filters)
+
+
+class PyKeyValue(PyExpression):
     def __init__(self, scope, parent, name, value=None, result=None):
         PyExpression.__init__(self, scope, parent, name, result, False)
         self.value = value
 
     def pretty_str(self, indent=0):
-        return '{}={}'.format(self.name, pretty_str(self.value))
+        return '{}{}: {}'.format(' ' * indent, pretty_str(self.name),
+                                 pretty_str(self.value))
 
 
 class PyCompositeValue(PyExpression):
