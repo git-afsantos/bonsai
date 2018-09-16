@@ -57,9 +57,6 @@ class ASTPreprocessor(ast.NodeTransformer):
         'True': Bool,
     }
 
-    def visit_Compare(self, node):
-        return self.generic_visit(node)
-
     def visit_Name(self, node):
         try:
             return self.name_mappings[node.id](node)
@@ -301,6 +298,7 @@ class BuilderVisitor(ast.NodeVisitor):
         return bonsai_node, self.scope, props
 
     def visit_Compare(self, py_node):
+        # No chained comparisons so far
         op_name = operator_names[py_node.ops[0].__class__]
         bonsai_node = py_model.PyOperator(self.scope, self.parent, op_name)
         return bonsai_node, self.scope, None
