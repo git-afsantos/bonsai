@@ -566,8 +566,6 @@ class CodeExpression(CodeEntity):
         self.result = result
         self.parenthesis = paren
 
-    LITERALS = (int, long, float, bool, basestring)
-
     @property
     def function(self):
         """The function where this expression occurs."""
@@ -600,6 +598,7 @@ class SomeValue(CodeExpression):
         """Constructor for unknown values."""
         CodeExpression.__init__(self, None, None, result, result)
 
+
 SomeValue.INTEGER = SomeValue("int")
 SomeValue.FLOATING = SomeValue("float")
 SomeValue.CHARACTER = SomeValue("char")
@@ -607,8 +606,132 @@ SomeValue.STRING = SomeValue("string")
 SomeValue.BOOL = SomeValue("bool")
 
 
-CodeExpression.TYPES = (int, long, float, bool,
-                       basestring, SomeValue, CodeExpression)
+class CodeLiteral(CodeExpression):
+    """Base class for literal types not present in Python.
+
+        This class is meant to represent a literal whose type is not numeric,
+        string or boolean, as bare Python literals are used for those.
+
+        A literal has a value (e.g. a list `[1, 2, 3]`) and a type (`result`),
+        and could be enclosed in parentheses. It does not have a name.
+    """
+
+    def __init__(self, scope, parent, value, result, paren=False):
+        """Constructor for literals.
+
+            As literals have no name, a constant string is used instead.
+
+        Args:
+            scope (CodeEntity): The program scope where this object belongs.
+            parent (CodeEntity): This object's parent in the program tree.
+            value (CodeExpression|CodeExpression[]): This literal's value.
+            result (str): The return type of the literal in the program.
+
+        Kwargs:
+            paren (bool): Whether the literal is enclosed in parentheses.
+        """
+        CodeExpression.__init__(self, scope, parent, 'literal', result, paren)
+        self.value = value
+
+    def pretty_str(self, indent=0):
+        """Return a human-readable string representation of this object.
+
+        Kwargs:
+            indent (int): The amount of spaces to use as indentation.
+        """
+        if self.parenthesis:
+            return '{}({})'.format(' ' * (indent * 4), pretty_str(self.value))
+        return pretty_str(self.value, indent=indent)
+
+    def __repr__(self):
+        """Return a string representation of this object."""
+        return '[{}] {!r}'.format(self.result, self.value)
+
+
+CodeExpression.TYPES = (int, long, float, bool, basestring, SomeValue,
+                        CodeLiteral, CodeExpression)
+
+CodeExpression.LITERALS = (int, long, float, bool, basestring, CodeLiteral)
+
+
+class CodeNull(CodeLiteral):
+    """This class represents an indefinite value.
+
+        Many programming languages have their own version of this concept:
+        Java has null references, C/C++ NULL pointers, Python None and so on.
+    """
+
+    def __init__(self, scope, parent, paren=False):
+        """Constructor for null literals.
+
+        Args:
+            scope (CodeEntity): The program scope where this object belongs.
+            parent (CodeEntity): This object's parent in the program tree.
+
+        Kwargs:
+            paren (bool): Whether the null literal is enclosed in parentheses.
+        """
+        CodeLiteral.__init__(self, scope, parent, None, 'null', paren)
+
+
+class CodeCompositeLiteral(CodeLiteral):
+    """This class represents a composite literal.
+
+        A composite literal is any type of literal whose value is compound,
+        rather than simple. An example present in many programming languages
+        are list literals, often constructed as `[1, 2, 3]`.
+
+        A composite literal has a sequence of values that compose it
+        (`values`), a type (`result`), and it should indicate whether it is
+        enclosed in parentheses.
+
+    """
+
+    def __init__(self, scope, parent, result, value=(), paren=False):
+        """Constructor for a compound literal.
+
+        Args:
+            scope (CodeEntity): The program scope where this object belongs.
+            parent (CodeEntity): This object's parent in the program tree.
+            value (iterable): The initial value sequence in this composition.
+            result (str): The return type of the literal in the program.
+
+        Kwargs:
+            paren (bool): Whether the literal is enclosed in parentheses.
+
+        """
+        try:
+            value = list(value)
+        except TypeError as te:
+            raise AssertionError(str(te))
+
+        CodeLiteral.__init__(self, scope, parent, value, result, paren)
+
+    @property
+    def values(self):
+        return tuple(self.value)
+
+    def _add_value(self, child):
+        """Add a value to the sequence in this composition."""
+        self.value.append(child)
+
+    def pretty_str(self, indent=0):
+        """Return a human-readable string representation of this object.
+
+        Kwargs:
+            indent (int): The amount of spaces to use as indentation.
+        """
+        indent = ' ' * (indent * 4)
+        values = '{{{}}}'.format(', '.join(map(pretty_str, self.value)))
+
+        if self.parenthesis:
+            return '{}({})'.format(indent, values)
+        return '{}{}'.format(indent, values)
+
+    def __repr__(self):
+        """Return a string representation of this object."""
+        return '[{}] {{{}}}'.format(self.result,
+                                    ', '.join(map(repr, self.value)))
 
 
 class CodeReference(CodeExpression):
