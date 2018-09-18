@@ -51,21 +51,28 @@ xrange(10, aaa=20, *args, **kwargs)
 # Method call
 x.m(2)
 
+# List comprehension with only one iterator
 [
     x + 1
     for x in xrange(10)
 ]
+
+# List comprehension with only one iterator and one filter
 [
     x + 1
     for x in xrange(10)
     if x % 5
 ]
+
+# List comprehension with only one iterator and more than one filter
 [
     x + 1
     for x in xrange(10)
     if x % 5
     if x % 2
 ]
+
+# List comprehension with more than one iterator, and filters only in one
 [
     x + 1
     for x in xrange(10)
@@ -73,6 +80,8 @@ x.m(2)
     if x % 2
     for y in xrange(25)
 ]
+
+# List comprehension with more than one iterator, all with filters
 [
     x + 1
     for x in xrange(10)
@@ -81,6 +90,8 @@ x.m(2)
     for y in xrange(25)
     if y in xrange(2, 3)
 ]
+
+# Set comprehension
 {
     x + 1
     for x in xrange(10)
@@ -89,6 +100,8 @@ x.m(2)
     for y in xrange(25)
     if y in xrange(2, 3)
 }
+
+# Generator expression
 (
     x + 1
     for x in xrange(10)
@@ -97,6 +110,8 @@ x.m(2)
     for y in xrange(25)
     if y in xrange(2, 3)
 )
+
+# Dictionary comprehension
 {
     x + 1: x
     for x in xrange(10)
@@ -104,4 +119,28 @@ x.m(2)
     if x % 2
     for y in xrange(25)
     if y in xrange(2, 3)
+}
+
+# Dictionary
+{
+    'a': 2,
+    5: 42,
+}
+
+# List
+[1, 2, 3]
+
+# Set
+{4, 5, 6}
+
+# Tuple
+(1, 2)
+
+# Nested composite literals
+{
+    ('a', 4): [9, True, 'else'],
+    {2, None}: 'seven',
+    'classic': {
+        'Is this JSON': False,
+    }
 }

@@ -84,6 +84,15 @@ class PyDel(PyStatement):
 
 # ----- Expression Entities ---------------------------------------------------
 
+parentheses = {
+    'dict': ('{', '}'),
+    'generator': ('(', ')'),
+    'list': ('[', ']'),
+    'set': ('{', '}'),
+    'tuple': ('(', ')'),
+}
+
+
 PyExpression = CodeExpression
 
 PyExpressionStatement = CodeExpressionStatement
@@ -157,12 +166,6 @@ class PyFunctionCall(CodeFunctionCall, PyExpression):
 
 
 class PyComprehension(PyExpression):
-    parens = {
-        'dict': ('{', '}'),
-        'generator': ('(', ')'),
-        'list': ('[', ']'),
-        'set': ('{', '}'),
-    }
     name_suffix_length = len('-comprehension')
 
     def __init__(self, scope, parent, name, expr, iters, result=None,
@@ -172,7 +175,7 @@ class PyComprehension(PyExpression):
         self.iters = iters
 
     def pretty_str(self, indent=0):
-        parens = self.parens[self.name[0:-self.name_suffix_length]]
+        parens = parentheses[self.name[0:-self.name_suffix_length]]
         iters = '\n'.join(
             pretty_str(iter, indent + 4)
             for iter in self.iters
@@ -218,8 +221,21 @@ class PyKeyValue(PyExpression):
         return '{}{}: {}'.format(' ' * indent, pretty_str(self.name),
                                  pretty_str(self.value))
 
+    def __repr__(self):
+        return '[{}] {!r}: {!r}'.format(self.result, self.name, self.value)
 
-class PyCompositeValue(PyExpression):
-    def __init__(self):
-        pass
+
+class PyCompositeLiteral(CodeCompositeLiteral):
+    def __init__(self, scope, parent, result, value=(), paren=False):
+        CodeCompositeLiteral.__init__(self, scope, parent, result, value,
+                                      paren)
+
+    def pretty_str(self, indent=0):
+        indent = ' ' * indent
+        parens = parentheses[self.result]
+        values = ', '.join(map(pretty_str, self.values))
+        vals = '{open}{values}{close}'.format(
+                open=parens[0], values=values, close=parens[1])
+
+        return ('{}({})' if self.parenthesis else '{}{}').format(indent, vals)
 

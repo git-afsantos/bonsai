@@ -22,6 +22,8 @@
 # Imports
 ###############################################################################
 
+from __future__ import division
+
 import ast
 import re
 
@@ -104,6 +106,13 @@ operator_names = {
     ast.USub: '-',
 }
 
+composite_name = {
+    ast.Dict: 'dict',
+    ast.List: 'list',
+    ast.Set: 'set',
+    ast.Tuple: 'tuple',
+}
+
 comprehension_name = {
     ast.DictComp: 'dict',
     ast.GeneratorExp: 'generator',
@@ -146,6 +155,21 @@ class PyBonsaiBuilder(object):
     def finalize(self, bonsai_node):
         method_name = 'finalize_' + self._make_class_name(bonsai_node)
         return getattr(self, method_name, identity)(bonsai_node)
+
+    def finalize_PyCompositeLiteral(self, bonsai_node):
+        if bonsai_node.result == 'dict':
+            half = len(self.children) // 2
+            pairs = zip(self.children[:half], self.children[half:])
+            children = (
+                py_model.PyKeyValue(self.scope, self.parent, key, value)
+                for key, value in pairs
+            )
+        else:
+            children = self.children
+
+        for value in children:
+            bonsai_node._add_value(value)
+        return bonsai_node
 
     def finalize_PyComprehension(self, bonsai_node):
         if 'dict' in bonsai_node.name:
@@ -238,11 +262,17 @@ class BuilderVisitor(ast.NodeVisitor):
 
         return builder_visit
 
+    def _make_composite_literal(self, py_node):
+        comp_name = composite_name[py_node.__class__]
+        bonsai_node = py_model.PyCompositeLiteral(self.scope, self.parent,
+                                                  comp_name)
+        return bonsai_node, self.scope, None
+
     def _make_comprehension(self, py_node):
         comp_name = comprehension_name[py_node.__class__] + '_comprehension'
         bonsai_node = py_model.PyComprehension(self.scope, self.parent,
                                                comp_name, None, None)
-        return bonsai_node, self.scope, None
+        return bonsai_node, bonsai_node, None
 
     def _make_operator(self, py_node):
         op_name = operator_names[py_node.op.__class__]
@@ -307,6 +337,9 @@ class BuilderVisitor(ast.NodeVisitor):
         bonsai_node = py_model.PyComprehensionIterator(self.parent, None, None)
         return bonsai_node, self.scope, None
 
+    def visit_Dict(self, py_node):
+        return self._make_composite_literal(py_node)
+
     def visit_DictComp(self, py_node):
         return self._make_comprehension(py_node)
 
@@ -327,6 +360,9 @@ class BuilderVisitor(ast.NodeVisitor):
     def visit_GeneratorExp(self, py_node):
         return self._make_comprehension(py_node)
 
+    def visit_List(self, py_node):
+        return self._make_composite_literal(py_node)
+
     def visit_ListComp(self, py_node):
         return self._make_comprehension(py_node)
 
@@ -346,11 +382,17 @@ class BuilderVisitor(ast.NodeVisitor):
     def visit_Num(self, py_node):
         return py_node.n, self.scope, None
 
+    def visit_Set(self, py_node):
+        return self._make_composite_literal(py_node)
+
     def visit_SetComp(self, py_node):
         return self._make_comprehension(py_node)
 
     def visit_Str(self, py_node):
         return py_node.s, self.scope, None
+
+    def visit_Tuple(self, py_node):
+        return self._make_composite_literal(py_node)
 
     def visit_UnaryOp(self, py_node):
         return self._make_operator(py_node)
