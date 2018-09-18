@@ -101,6 +101,8 @@ PyReference = CodeReference
 
 PyVariable = CodeVariable
 
+PyNull = CodeNull
+
 
 class PyOperator(CodeOperator, PyExpression):
     _UNARY_TOKENS = ('~', 'not', '+', '-')

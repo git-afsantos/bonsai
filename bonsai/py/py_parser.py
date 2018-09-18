@@ -377,7 +377,8 @@ class BuilderVisitor(ast.NodeVisitor):
         return bonsai_node, self.scope, None
 
     def visit_NoneAST(self, py_node):
-        return 'None', self.scope, None
+        bonsai_node = py_model.PyNull(self.scope, self.parent)
+        return bonsai_node, self.scope, None
 
     def visit_Num(self, py_node):
         return py_node.n, self.scope, None
