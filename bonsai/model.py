@@ -640,7 +640,7 @@ class CodeLiteral(CodeExpression):
             indent (int): The amount of spaces to use as indentation.
         """
         if self.parenthesis:
-            return '{}({})'.format(' ' * (indent * 4), pretty_str(self.value))
+            return '{}({})'.format(' ' * indent, pretty_str(self.value))
         return pretty_str(self.value, indent=indent)
 
     def __repr__(self):
@@ -721,7 +721,7 @@ class CodeCompositeLiteral(CodeLiteral):
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        indent = ' ' * (indent * 4)
+        indent = ' ' * indent
         values = '{{{}}}'.format(', '.join(map(pretty_str, self.value)))
 
         if self.parenthesis:
