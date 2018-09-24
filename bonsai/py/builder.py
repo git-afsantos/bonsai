@@ -155,6 +155,9 @@ class PyBonsaiBuilder(object):
         bonsai_node.filters = tuple(self.children[2:])
         return bonsai_node
 
+    def finalize_PyDelete(self, bonsai_node):
+        return self._add_all_children(bonsai_node)
+
     def finalize_PyExpressionStatement(self, bonsai_node):
         bonsai_node.expression = self.children[0]
         return bonsai_node

@@ -81,20 +81,35 @@ class PyAssignment(PyStatement, CodeOperator):
         return False
 
     def __repr__(self):
-        targets = ', '.join(map(repr, self.arguments[:-1]))
+        # Multiple targets are used like this (`a` and `b`): a = b = 1
+        targets = ' = '.join(map(repr, self.arguments[:-1]))
         return '[{}] {} {} {!r}'.format(self.result, targets, self.name,
                                         self.arguments[-1])
 
     def pretty_str(self, indent=0):
-        targets = ', '.join(map(pretty_str, self.arguments[:-1]))
+        # Multiple targets are used like this (`a` and `b`): a = b = 1
+        targets = ' = '.join(map(pretty_str, self.arguments[:-1]))
         return '{} {} {}'.format(targets, self.name,
                                  pretty_str(self.arguments[-1]))
 
 
-class PyDel(PyStatement):
-    def __init__(self, parent, scope, *targets):
+class PyDelete(PyStatement):
+    def __init__(self, parent, scope, targets=()):
         PyStatement.__init__(self, parent, scope)
-        self.arguments = targets
+        self.targets = targets
+
+    def __repr__(self):
+        return 'del {}'.format(', '.join(map(repr, self.targets)))
+
+    def _add(self, target):
+        self.targets = self.targets + (target,)
+
+    def _children(self):
+        for target in self.targets:
+            yield target
+
+    def pretty_str(self, indent=0):
+        return 'del {}'.format(', '.join(map(pretty_str, self.targets)))
 
 
 # class PyLambda(PyExpression):

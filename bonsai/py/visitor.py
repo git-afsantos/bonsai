@@ -187,6 +187,10 @@ class BuilderVisitor(ast.NodeVisitor):
         bonsai_node = py_model.PyComprehensionIterator(self.parent, None, None)
         return bonsai_node, self.scope, None
 
+    def visit_Delete(self, py_node):
+        bonsai_node = py_model.PyDelete(self.scope, self.parent)
+        return bonsai_node, self.scope, None
+
     def visit_Dict(self, py_node):
         return self._make_composite_literal(py_node)
 
