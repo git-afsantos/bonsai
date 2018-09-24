@@ -92,6 +92,12 @@ class BuilderVisitor(ast.NodeVisitor):
 
         return builder_visit
 
+    def _make_assign(self, py_node):
+        operator_modifier = getattr(py_node, 'op', None)
+        operator = operator_names.get(operator_modifier.__class__, '') + '='
+        bonsai_node = py_model.PyAssignment(self.scope, self.parent, operator)
+        return bonsai_node, self.scope, None
+
     def _make_composite_literal(self, py_node):
         comp_name = composite_names[py_node.__class__]
         bonsai_node = py_model.PyCompositeLiteral(self.scope, self.parent,
@@ -131,11 +137,17 @@ class BuilderVisitor(ast.NodeVisitor):
         self.visit(node)
         return self.builder.children[0]
 
+    def visit_Assign(self, py_node):
+        return self._make_assign(py_node)
+
     def visit_Attribute(self, py_node):
         # Still need to handle definitions (just use py_node.ctx)
         bonsai_node = py_model.PyReference(self.scope, self.parent,
                                            py_node.attr, None)
         return bonsai_node, self.scope, None
+
+    def visit_AugAssign(self, py_node):
+        return self._make_assign(py_node)
 
     def visit_BinOp(self, py_node):
         return self._make_operator(py_node)

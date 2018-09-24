@@ -73,3 +73,11 @@ operator_names = {
     ast.UAdd: '+',
     ast.USub: '-',
 }
+
+parentheses = {
+    'dict': ('{', '}'),
+    'generator': ('(', ')'),
+    'list': ('[', ']'),
+    'set': ('{', '}'),
+    'tuple': ('(', ')'),
+}

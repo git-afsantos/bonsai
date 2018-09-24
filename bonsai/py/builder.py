@@ -28,15 +28,8 @@ import re
 import bonsai.model as bonsai_model
 import bonsai.py.model as py_model
 
+from bonsai import identity
 from bonsai.py import operator_names
-
-###############################################################################
-# Functions
-###############################################################################
-
-
-def identity(x):
-    return x
 
 
 ###############################################################################
@@ -91,6 +84,12 @@ class PyBonsaiBuilder(object):
             setattr(bonsai_node, 'scope', scope)
             setattr(bonsai_node, 'parent', parent)
 
+    def _add_all_children(self, bonsai_node, children=()):
+        children = children or self.children
+        for child in children:
+            bonsai_node._add(child)
+        return bonsai_node
+
     def _make_key_value(self, pair):
         key, value = pair
         key_val = py_model.PyKeyValue(self.scope, self.parent, key, value)
@@ -121,6 +120,9 @@ class PyBonsaiBuilder(object):
         method_name = 'finalize_' + self._make_class_name(bonsai_node)
         return getattr(self, method_name, identity)(bonsai_node)
 
+    def finalize_PyAssignment(self, bonsai_node):
+        return self._add_all_children(bonsai_node)
+
     def finalize_PyCompositeLiteral(self, bonsai_node):
         if bonsai_node.result == 'dict':
             half = len(self.children) // 2
@@ -129,9 +131,7 @@ class PyBonsaiBuilder(object):
         else:
             children = self.children
 
-        for value in children:
-            bonsai_node._add_value(value)
-        return bonsai_node
+        return self._add_all_children(bonsai_node, children)
 
     def finalize_PyComprehension(self, bonsai_node):
         if 'dict' in bonsai_node.name:
@@ -187,20 +187,14 @@ class PyBonsaiBuilder(object):
         return bonsai_node
 
     def finalize_PyModule(self, bonsai_node):
-        for child in self.children:
-            bonsai_node._add(child)
-        return bonsai_node
+        return self._add_all_children(bonsai_node)
 
     def finalize_PyOperator(self, bonsai_node):
         if self.ops:
             ops = zip(self.children, self.ops, self.children[1:])
             return self._expand_compare(bonsai_node.scope, bonsai_node.parent,
                                         ops)
-
-        for child in self.children:
-            bonsai_node._add(child)
-
-        return bonsai_node
+        return self._add_all_children(bonsai_node)
 
     def finalize_PyReference(self, bonsai_node):
         if self.children:

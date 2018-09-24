@@ -148,3 +148,11 @@ x.m(2)
         'Is this JSON': False,
     }
 }
+
+# Assignment
+x = 5
+x, y = xrange(2)
+
+# Augmented assignment
+x += 3
+y <<= x

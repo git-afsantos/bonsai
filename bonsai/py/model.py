@@ -22,7 +22,8 @@
 # Imports
 ###############################################################################
 
-from ..model import *
+from bonsai.model import *
+from bonsai.py import parentheses
 
 ###############################################################################
 # Language Model
@@ -32,15 +33,23 @@ PyEntity = CodeEntity
 
 PyStatementGroup = CodeStatementGroup
 
-PyJumpStatement = CodeJumpStatement
+# ----- Common Entities -------------------------------------------------------
 
 
 class PyModule(CodeGlobalScope):
     def _add(self, codeobj):
+        # Unlike C++, pretty much anything can be defined at global level.
+        # The parent has an assertion that stands in the way
         self.children.append(codeobj)
 
 
+# ----- Statement Entities ----------------------------------------------------
+
+PyJumpStatement = CodeJumpStatement
+
+
 class PyStatement(CodeStatement):
+    # No bare aliasing, need to override is_assignment
     def __init__(self, parent, scope):
         CodeStatement.__init__(self, parent, scope)
 
@@ -49,23 +58,37 @@ class PyStatement(CodeStatement):
 
 
 class PyAssignment(PyStatement, CodeOperator):
-    def __init__(self, scope, parent, operator='=', result=None, args=None,
+    def __init__(self, scope, parent, operator='=', args=(), result=None,
                  paren=False):
         CodeStatement.__init__(self, scope, parent)
         CodeOperator.__init__(self, scope, parent, operator, result, args,
                               paren)
 
+    @property
     def is_assignment(self):
         return True
 
+    @property
     def is_binary(self):
         return True
 
+    @property
     def is_ternary(self):
         return False
 
+    @property
     def is_unary(self):
         return False
+
+    def __repr__(self):
+        targets = ', '.join(map(repr, self.arguments[:-1]))
+        return '[{}] {} {} {!r}'.format(self.result, targets, self.name,
+                                        self.arguments[-1])
+
+    def pretty_str(self, indent=0):
+        targets = ', '.join(map(pretty_str, self.arguments[:-1]))
+        return '{} {} {}'.format(targets, self.name,
+                                 pretty_str(self.arguments[-1]))
 
 
 class PyDel(PyStatement):
@@ -83,15 +106,6 @@ class PyDel(PyStatement):
 
 
 # ----- Expression Entities ---------------------------------------------------
-
-parentheses = {
-    'dict': ('{', '}'),
-    'generator': ('(', ')'),
-    'list': ('[', ']'),
-    'set': ('{', '}'),
-    'tuple': ('(', ')'),
-}
-
 
 PyExpression = CodeExpression
 
@@ -239,12 +253,12 @@ class PyKeyValue(PyExpression):
         if isinstance(self.value, CodeEntity):
             yield self.value
 
+    def __repr__(self):
+        return '[{}] {!r}: {!r}'.format(self.result, self.name, self.value)
+
     def pretty_str(self, indent=0):
         return '{}{}: {}'.format(' ' * indent, pretty_str(self.name),
                                  pretty_str(self.value))
-
-    def __repr__(self):
-        return '[{}] {!r}: {!r}'.format(self.result, self.name, self.value)
 
 
 class PyCompositeLiteral(CodeCompositeLiteral):
