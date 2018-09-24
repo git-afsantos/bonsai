@@ -176,6 +176,12 @@ class PyComprehension(PyExpression):
         self.expr = expr
         self.iters = iters
 
+    def _children(self):
+        yield self.expr
+
+        for iter in self.iters:
+            yield iter
+
     def pretty_str(self, indent=0):
         parens = parentheses[self.name[0:-self.name_suffix_length]]
         iters = '\n'.join(
@@ -198,6 +204,13 @@ class PyComprehensionIterator(PyExpression):
         self.iter = iter
         self.filters = filters
 
+    def _children(self):
+        yield self.target
+        yield self.iter
+
+        for filter in self.filters:
+            yield filter
+
     def pretty_str(self, indent=0):
         indent = ' ' * indent
 
@@ -218,6 +231,13 @@ class PyKeyValue(PyExpression):
     def __init__(self, scope, parent, name, value=None, result=None):
         PyExpression.__init__(self, scope, parent, name, result, False)
         self.value = value
+
+    def _children(self):
+        if isinstance(self.name, CodeEntity):
+            yield self.name
+
+        if isinstance(self.value, CodeEntity):
+            yield self.value
 
     def pretty_str(self, indent=0):
         return '{}{}: {}'.format(' ' * indent, pretty_str(self.name),
