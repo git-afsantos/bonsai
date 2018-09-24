@@ -8,6 +8,11 @@
 False is None
 1 is not 'aaaa'
 
+# Chained comparisons
+1 < 2 < 3
+1 < 2 < 3 < 4
+1 < 2 < 3 < 4 < 5 + 3
+
 # Bool operators
 True and 1
 
@@ -25,14 +30,14 @@ xrange()
 
 # Function call -- positional args only
 xrange(10)
-xrange(10, 20)
+xrange(10, x)
 
 # Function call -- keyword args only
 xrange(aaa=10)
-xrange(aaa=10, bbb=20)
+xrange(aaa=10, bbb=x)
 
 # Function call -- positional and keyword arguments
-xrange(10, aaa=20)
+xrange(10, aaa=x)
 
 # Function call -- starargs
 xrange(*args)
@@ -44,9 +49,8 @@ xrange(**kwargs)
 xrange(10, **kwargs)
 xrange(aaa=10, **kwargs)
 
-
 # Function call -- all together
-xrange(10, aaa=20, *args, **kwargs)
+xrange(10, aaa=x, *args, **kwargs)
 
 # Method call
 x.m(2)
@@ -124,14 +128,14 @@ x.m(2)
 # Dictionary
 {
     'a': 2,
-    5: 42,
+    5: y,
 }
 
 # List
-[1, 2, 3]
+[1, y, 3]
 
 # Set
-{4, 5, 6}
+{y, 5, 6}
 
 # Tuple
 (1, 2)
@@ -139,7 +143,7 @@ x.m(2)
 # Nested composite literals
 {
     ('a', 4): [9, True, 'else'],
-    {2, None}: 'seven',
+    {y, None}: 'seven',
     'classic': {
         'Is this JSON': False,
     }

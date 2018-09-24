@@ -27,6 +27,7 @@ from __future__ import division
 import ast
 import re
 
+import bonsai.model as bonsai_model
 import bonsai.py.model as py_model
 
 from inspect import getmembers, isroutine
@@ -86,6 +87,7 @@ operator_names = {
     ast.FloorDiv: '//',
     ast.Gt: '>',
     ast.GtE: '>=',
+    ast.IfExp: 'conditional-operator',
     ast.In: 'in',
     ast.Invert: '~',
     ast.Is: 'is',
@@ -129,11 +131,53 @@ class PyBonsaiBuilder(object):
 
     """
 
+    and_name = operator_names[ast.And]
     bonsai_prefix = re.compile('^Code')
+
+    @classmethod
+    def _expand_compare(cls, scope, parent, args):
+        is_only_arg = len(args) == 1
+
+        and_node = py_model.PyOperator(scope, parent, cls.and_name,
+                                       from_compare=True)
+        parent = parent if is_only_arg else and_node
+
+        left, op, right = args[0]
+        left_node = py_model.PyOperator(scope, parent, op, from_compare=True)
+        left_node._add(left)
+        left_node._add(right)
+
+        cls._set_parent_and_scope(left, scope, left_node)
+        cls._set_parent_and_scope(right, scope, left_node)
+
+        if is_only_arg:
+            return left_node
+
+        right_node = cls._expand_compare(scope, parent, args[1:])
+
+        and_node._add(left_node)
+        and_node._add(right_node)
+
+        return and_node
 
     @classmethod
     def _make_class_name(cls, bonsai_node):
         return re.sub(cls.bonsai_prefix, 'Py', bonsai_node.__class__.__name__)
+
+    @staticmethod
+    def _set_parent_and_scope(bonsai_node, scope, parent):
+        if isinstance(bonsai_node, bonsai_model.CodeEntity):
+            setattr(bonsai_node, 'scope', scope)
+            setattr(bonsai_node, 'parent', parent)
+
+    def _make_key_value(self, pair):
+        key, value = pair
+        key_val = py_model.PyKeyValue(self.scope, self.parent, key, value)
+
+        self._set_parent_and_scope(key, key_val.scope, key_val)
+        self._set_parent_and_scope(value, key_val.scope, key_val)
+
+        return key_val
 
     def __init__(self, parent=None, scope=None, props=None):
         self.children = []
@@ -160,10 +204,7 @@ class PyBonsaiBuilder(object):
         if bonsai_node.result == 'dict':
             half = len(self.children) // 2
             pairs = zip(self.children[:half], self.children[half:])
-            children = (
-                py_model.PyKeyValue(self.scope, self.parent, key, value)
-                for key, value in pairs
-            )
+            children = map(self._make_key_value, pairs)
         else:
             children = self.children
 
@@ -173,8 +214,12 @@ class PyBonsaiBuilder(object):
 
     def finalize_PyComprehension(self, bonsai_node):
         if 'dict' in bonsai_node.name:
-            bonsai_node.expr = py_model.PyKeyValue(bonsai_node, bonsai_node,
-                                                   *self.children[:2])
+            key, value = self.children[:2]
+            key_value = py_model.PyKeyValue(bonsai_node, bonsai_node, key,
+                                            value)
+            self._set_parent_and_scope(key, key_value.scope, key_value)
+            self._set_parent_and_scope(value, key_value.scope, key_value)
+            bonsai_node.expr = key_value
             first_iter_index = 2
         else:
             bonsai_node.expr = self.children[0]
@@ -226,8 +271,14 @@ class PyBonsaiBuilder(object):
         return bonsai_node
 
     def finalize_PyOperator(self, bonsai_node):
+        if self.ops:
+            ops = zip(self.children, self.ops, self.children[1:])
+            return self._expand_compare(bonsai_node.scope, bonsai_node.parent,
+                                        ops)
+
         for child in self.children:
             bonsai_node._add(child)
+
         return bonsai_node
 
     def finalize_PyReference(self, bonsai_node):
@@ -275,9 +326,10 @@ class BuilderVisitor(ast.NodeVisitor):
         return bonsai_node, bonsai_node, None
 
     def _make_operator(self, py_node):
-        op_name = operator_names[py_node.op.__class__]
+        op_name = (operator_names.get(py_node.__class__)
+                   or operator_names[py_node.op.__class__])
         bonsai_node = py_model.PyOperator(self.scope, self.parent, op_name)
-        return bonsai_node, self.scope, None
+        return bonsai_node, self.scope, {'ops': ()}
 
     def __init__(self, parent=None, scope=None, props=None):
         ast.NodeVisitor.__init__(self)
@@ -328,10 +380,17 @@ class BuilderVisitor(ast.NodeVisitor):
         return bonsai_node, self.scope, props
 
     def visit_Compare(self, py_node):
-        # No chained comparisons so far
-        op_name = operator_names[py_node.ops[0].__class__]
-        bonsai_node = py_model.PyOperator(self.scope, self.parent, op_name)
-        return bonsai_node, self.scope, None
+        # No chained comparisons here
+        if len(py_node.ops) == 1:
+            return self._make_operator(py_node.ops[0])
+
+        # Chained comparison
+        bonsai_node = py_model.PyOperator(self.scope, self.parent,
+                                          operator_names[ast.And])
+        props = {
+            'ops': (operator_names[op.__class__] for op in py_node.ops)
+        }
+        return bonsai_node, self.scope, props
 
     def visit_comprehension(self, py_node):
         bonsai_node = py_model.PyComprehensionIterator(self.parent, None, None)
@@ -349,9 +408,7 @@ class BuilderVisitor(ast.NodeVisitor):
         return bonsai_node, self.scope, None
 
     def visit_IfExp(self, py_node):
-        bonsai_node = py_model.PyOperator(self.scope, self.parent,
-                                          'conditional-operator')
-        return bonsai_node, self.scope, None
+        return self._make_operator(py_node)
 
     def visit_keyword(self, py_node):
         bonsai_node = py_model.PyKeyValue(self.scope, self.parent, py_node.arg)
@@ -415,11 +472,13 @@ with open(file_name) as source:
     bonsai_tree = BuilderVisitor().build(tree)
 
     # print(ast.dump(tree))
-    print(bonsai_tree.pretty_str())
+    # print(bonsai_tree.pretty_str())
+    # bonsai_tree.pretty_str()
 
-    # for child in bonsai_tree.walk_preorder():
-    #     print('{} ({}): {!r} -- parent: {!r}'.format(
-    #             type(child).__name__,
-    #             id(child) % 100000,
-    #             child,
-    #             None if child.parent is None else id(child.parent) % 100000))
+    for child in bonsai_tree.walk_preorder():
+        print('{} ({}): {!r} -- parent: {!r}'.format(
+                type(child).__name__,
+                id(child) % 100000,
+                child,
+                None if child.parent is None else id(child.parent) % 100000))
+
