@@ -23,6 +23,7 @@
 # Language Model
 ###############################################################################
 
+
 class CodeEntity(object):
     """Base class for all programming entities.
 
@@ -52,7 +53,7 @@ class CodeEntity(object):
             for descendant in child.walk_preorder():
                 yield descendant
 
-    def filter(self, cls, recursive = False):
+    def filter(self, cls, recursive=False):
         """Retrieves all descendants (including self) that are instances
             of a given class.
 
@@ -62,18 +63,16 @@ class CodeEntity(object):
         Kwargs:
             recursive (bool): Whether to descend recursively down the tree.
         """
-        objects = []
-        if recursive:
-            for codeobj in self.walk_preorder():
-                if isinstance(codeobj, cls):
-                    objects.append(codeobj)
-        else:
-            if isinstance(self, cls):
-                objects.append(self)
-            for child in self._children():
-                if isinstance(child, cls):
-                    objects.append(child)
-        return objects
+        source = self.walk_preorder if recursive else self._children
+        return [
+            codeobj
+            for codeobj in source()
+            if isinstance(codeobj, cls)
+        ]
+
+    def _afterpass(self):
+        """Finalizes the construction of a code entity."""
+        pass
 
     def _validity_check(self):
         """Check whether this object is a valid construct."""
@@ -81,27 +80,25 @@ class CodeEntity(object):
 
     def _children(self):
         """Yield all direct children of this object."""
-        return
         yield
 
     def _lookup_parent(self, cls):
         """Lookup a transitive parent object that is an instance
             of a given class."""
         codeobj = self.parent
-        while not codeobj is None and not isinstance(codeobj, cls):
+        while codeobj is not None and not isinstance(codeobj, cls):
             codeobj = codeobj.parent
         return codeobj
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        return (" " * indent) + self.__str__()
+        return (' ' * indent) + self.__str__()
 
-    def ast_str(self, indent = 0):
+    def ast_str(self, indent=0):
         """Return a minimal string to print a tree-like structure.
 
         Kwargs:
@@ -110,14 +107,10 @@ class CodeEntity(object):
         line = self.line or 0
         col = self.column or 0
         name = type(self).__name__
-        spell = "[no spelling]"
-        if hasattr(self, "name"):
-            spell = self.name or spell
-        result = ""
-        if hasattr(self, "result"):
-            result = " (" + self.result + ")"
-        prefix = indent * "| "
-        return "{}[{}:{}] {}{}: {}".format(prefix, line, col,
+        spell = getattr(self, 'name', '[no spelling]')
+        result = ' ({})'.format(self.result) if hasattr(self, 'result') else ''
+        prefix = indent * '| '
+        return '{}[{}:{}] {}{}: {}'.format(prefix, line, col,
                                            name, result, spell)
 
     def __str__(self):
@@ -126,7 +119,7 @@ class CodeEntity(object):
 
     def __repr__(self):
         """Return a string representation of this object."""
-        return "[unknown]"
+        return '[unknown]'
 
 
 class CodeStatementGroup(object):
@@ -152,9 +145,14 @@ class CodeStatementGroup(object):
         except IndexError as e:
             return None
 
+    def __getitem__(self, i):
+        """Return the *i*-th statement from the object's `body`."""
+        return self.statement(i)
+
     def __len__(self):
         """Return the length of the statement group."""
         return len(self.body)
+
 
 # ----- Common Entities -------------------------------------------------------
 
@@ -192,6 +190,10 @@ class CodeVariable(CodeEntity):
         self.writes = []
 
     @property
+    def is_definition(self):
+        return True
+
+    @property
     def is_local(self):
         """Whether this is a local variable.
 
@@ -201,7 +203,7 @@ class CodeVariable(CodeEntity):
         """
         return (isinstance(self.scope, CodeStatement)
                 or (isinstance(self.scope, CodeFunction)
-                    and not self in self.scope.parameters))
+                    and self not in self.scope.parameters))
 
     @property
     def is_global(self):
@@ -223,7 +225,6 @@ class CodeVariable(CodeEntity):
         """Whether this is a member/attribute of a class or object."""
         return isinstance(self.scope, CodeClass)
 
-
     def _add(self, codeobj):
         """Add a child (value) to this object."""
         assert isinstance(codeobj, CodeExpression.TYPES)
@@ -234,20 +235,18 @@ class CodeVariable(CodeEntity):
         if isinstance(self.value, CodeEntity):
             yield self.value
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        indent = " " * indent
-        return "{}{} {} = {}".format(indent, self.result, self.name,
+        return '{}{} {} = {}'.format(' ' * indent, self.result, self.name,
                                      pretty_str(self.value))
 
     def __repr__(self):
         """Return a string representation of this object."""
-        return "[{}] {} = ({})".format(self.result, self.name, self.value)
+        return '[{}] {} = ({})'.format(self.result, self.name, self.value)
 
 
 class CodeFunction(CodeEntity, CodeStatementGroup):
@@ -276,7 +275,7 @@ class CodeFunction(CodeEntity, CodeStatementGroup):
         self.name = name
         self.result = result
         self.parameters = []
-        self.body = CodeBlock(self, self, explicit = True)
+        self.body = CodeBlock(self, self, explicit=True)
         self.member_of = None
         self.references = []
         self._definition = self
@@ -289,7 +288,7 @@ class CodeFunction(CodeEntity, CodeStatementGroup):
     @property
     def is_constructor(self):
         """Whether this function is a class constructor."""
-        return not self.member_of is None
+        return self.member_of is not None
 
     def _add(self, codeobj):
         """Add a child (statement) to this object."""
@@ -309,7 +308,7 @@ class CodeFunction(CodeEntity, CodeStatementGroup):
 
             This should only be called after the object is fully built.
         """
-        if hasattr(self, "_fi"):
+        if hasattr(self, '_fi'):
             return
         fi = 0
         for codeobj in self.walk_preorder():
@@ -322,31 +321,30 @@ class CodeFunction(CodeEntity, CodeStatementGroup):
                     if isinstance(var, CodeVariable):
                         var.writes.append(codeobj)
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        spaces = " " * indent
-        params = ", ".join(map(lambda p: p.result + " " + p.name,
-                            self.parameters))
+        spaces = ' ' * indent
+        params = ', '.join(map(lambda p: p.result + ' ' + p.name,
+                           self.parameters))
         if self.is_constructor:
-            pretty = "{}{}({}):\n".format(spaces, self.name, params)
+            pretty = '{}{}({}):\n'.format(spaces, self.name, params)
         else:
-            pretty = "{}{} {}({}):\n".format(spaces, self.result,
+            pretty = '{}{} {}({}):\n'.format(spaces, self.result,
                                              self.name, params)
-        if not self._definition is self:
-            pretty += spaces + "  [declaration]"
+        if self._definition is not self:
+            pretty += spaces + '  [declaration]'
         else:
             pretty += self.body.pretty_str(indent + 2)
         return pretty
 
     def __repr__(self):
         """Return a string representation of this object."""
-        params = ", ".join([str(p) for p in self.parameters])
-        return "[{}] {}({})".format(self.result, self.name, params)
+        params = ', '.join(map(str, self.parameters))
+        return '[{}] {}({})'.format(self.result, self.name, params)
 
 
 class CodeClass(CodeEntity):
@@ -360,7 +358,7 @@ class CodeClass(CodeEntity):
         have its `member_of` set to the corresponding class.
     """
 
-    def __init__(self, scope, parent, id, name):
+    def __init__(self, scope, parent, id_, name):
         """Constructor for classes.
 
         Args:
@@ -368,10 +366,9 @@ class CodeClass(CodeEntity):
             parent (CodeEntity): This object's parent in the program tree.
             id: An unique identifier for this class.
             name (str): The name of the class in the program.
-            result (str): The return type of the class in the program.
         """
         CodeEntity.__init__(self, scope, parent)
-        self.id = id
+        self.id = id_
         self.name = name
         self.members = []
         self.superclasses = []
@@ -382,7 +379,7 @@ class CodeClass(CodeEntity):
     @property
     def is_definition(self):
         """Whether this is a definition or a declaration of the class."""
-        return True # TODO
+        return True    # TODO
 
     def _add(self, codeobj):
         """Add a child (function, variable, class) to this object."""
@@ -402,31 +399,31 @@ class CodeClass(CodeEntity):
             This should only be called after the object is fully built.
         """
         for codeobj in self.members:
-            if isinstance(codeobj, CodeVariable):
-                continue
             if not codeobj.is_definition:
                 codeobj._definition.member_of = self
             codeobj._afterpass()
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        spaces = " " * indent
-        pretty = spaces + "class " + self.name
+        spaces = ' ' * indent
+        pretty = spaces + 'class ' + self.name
         if self.superclasses:
-            superclasses = ", ".join(self.superclasses)
-            pretty += "(" + superclasses + ")"
-        pretty += ":\n"
-        pretty += "\n\n".join([c.pretty_str(indent + 2) for c in self.members])
+            superclasses = ', '.join(self.superclasses)
+            pretty += '(' + superclasses + ')'
+        pretty += ':\n'
+        pretty += '\n\n'.join(
+                c.pretty_str(indent + 2)
+                for c in self.members
+        )
         return pretty
 
     def __repr__(self):
         """Return a string representation of this object."""
-        return "[class {}]".format(self.name)
+        return '[class {}]'.format(self.name)
 
 
 class CodeNamespace(CodeEntity):
@@ -469,25 +466,22 @@ class CodeNamespace(CodeEntity):
             This should only be called after the object is fully built.
         """
         for codeobj in self.children:
-            if isinstance(codeobj, CodeVariable):
-                continue
             codeobj._afterpass()
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        spaces = " " * indent
-        pretty = spaces + "namespace " + self.name + ":\n"
-        pretty += "\n\n".join([c.pretty_str(indent + 2) for c in self.children])
+        spaces = ' ' * indent
+        pretty = '{}namespace {}:\n'.format(spaces, self.name)
+        pretty += '\n\n'.join(c.pretty_str(indent + 2) for c in self.children)
         return pretty
 
     def __repr__(self):
         """Return a string representation of this object."""
-        return "[namespace {}]".format(self.name)
+        return '[namespace {}]'.format(self.name)
 
 
 class CodeGlobalScope(CodeEntity):
@@ -520,19 +514,18 @@ class CodeGlobalScope(CodeEntity):
             This should only be called after the object is fully built.
         """
         for codeobj in self.children:
-            if isinstance(codeobj, CodeVariable):
-                continue
             codeobj._afterpass()
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        return "\n\n".join([codeobj.pretty_str(indent = indent) \
-                            for codeobj in self.children])
+        return '\n\n'.join(
+                codeobj.pretty_str(indent=indent)
+                for codeobj in self.children
+        )
 
 
 # ----- Expression Entities ---------------------------------------------------
@@ -549,7 +542,7 @@ class CodeExpression(CodeEntity):
         indicate whether it is enclosed in parentheses.
     """
 
-    def __init__(self, scope, parent, name, result, paren = False):
+    def __init__(self, scope, parent, name, result, paren=False):
         """Constructor for expressions.
 
         Args:
@@ -576,19 +569,19 @@ class CodeExpression(CodeEntity):
         """The statement where this expression occurs."""
         return self._lookup_parent(CodeStatement)
 
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
         if self.parenthesis:
-            return (" " * indent) + "(" + self.name + ")"
-        return (" " * indent) + self.name
+            return (' ' * indent) + '(' + self.name + ')'
+        return (' ' * indent) + self.name
 
     def __repr__(self):
         """Return a string representation of this object."""
-        return "[{}] {}".format(self.result, self.name)
+        return '[{}] {}'.format(self.result, self.name)
 
 
 class SomeValue(CodeExpression):
@@ -673,6 +666,15 @@ class CodeNull(CodeLiteral):
         """
         CodeLiteral.__init__(self, scope, parent, None, 'null', paren)
 
+    def _children(self):
+        """Yield all the children of this object, that is no children.
+
+        This class inherits from CodeLiteral just for consistency with the
+        class hierarchy. It should have no children, thus an empty iterator
+        is returned.
+        """
+        return iter(())
+
 
 class CodeCompositeLiteral(CodeLiteral):
     """This class represents a composite literal.
@@ -715,6 +717,12 @@ class CodeCompositeLiteral(CodeLiteral):
         """Add a value to the sequence in this composition."""
         self.value.append(child)
 
+    def _children(self):
+        """Yield all direct children of this object."""
+        for value in self.value:
+            if isinstance(value, CodeEntity):
+                yield value
+
     def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
@@ -746,7 +754,7 @@ class CodeReference(CodeExpression):
         should be set to that object.
     """
 
-    def __init__(self, scope, parent, name, result, paren = False):
+    def __init__(self, scope, parent, name, result, paren=False):
         """Constructor for references.
 
         Args:
@@ -772,29 +780,27 @@ class CodeReference(CodeExpression):
         if self.field_of:
             yield self.field_of
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        spaces = (" " * indent)
-        pretty = "{}({})" if self.parenthesis else "{}{}"
-        name = self.name
-        if self.field_of:
-            name = self.field_of.pretty_str() + "." + self.name
+        spaces = ' ' * indent
+        pretty = '{}({})' if self.parenthesis else '{}{}'
+        name = ('{}.{}'.format(self.field_of.pretty_str(), self.name)
+                if self.field_of else self.name)
         return pretty.format(spaces, name)
 
     def __str__(self):
         """Return a string representation of this object."""
-        return "#" + self.name
+        return '#' + self.name
 
     def __repr__(self):
         """Return a string representation of this object."""
         if self.field_of:
-            return "[{}] ({}).{}".format(self.result, self.field_of, self.name)
-        return "[{}] #{}".format(self.result, self.name)
+            return '[{}] ({}).{}'.format(self.result, self.field_of, self.name)
+        return '[{}] #{}'.format(self.result, self.name)
 
 
 class CodeOperator(CodeExpression):
@@ -815,7 +821,7 @@ class CodeOperator(CodeExpression):
     _BINARY_TOKENS = ("+", "-", "*", "/", "%", "<", ">", "<=", ">=",
                       "==", "!=", "&&", "||", "=")
 
-    def __init__(self, scope, parent, name, result, args = None, paren = False):
+    def __init__(self, scope, parent, name, result, args=None, paren=False):
         """Constructor for operators.
 
         Args:
@@ -828,7 +834,7 @@ class CodeOperator(CodeExpression):
             args (tuple): Initial tuple of arguments.
             paren (bool): Whether the expression is enclosed in parentheses.
         """
-        CodeExpression.__init__(self, scope, parent, name, result)
+        CodeExpression.__init__(self, scope, parent, name, result, paren)
         self.arguments = args or ()
 
     @property
@@ -862,19 +868,18 @@ class CodeOperator(CodeExpression):
             if isinstance(codeobj, CodeExpression):
                 yield codeobj
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        indent = (" " * indent)
-        pretty = "{}({})" if self.parenthesis else "{}{}"
+        indent = ' ' * indent
+        pretty = '{}({})' if self.parenthesis else '{}{}'
         if self.is_unary:
             operator = self.name + pretty_str(self.arguments[0])
         else:
-            operator = "{} {} {}".format(pretty_str(self.arguments[0]),
+            operator = '{} {} {}'.format(pretty_str(self.arguments[0]),
                                          self.name,
                                          pretty_str(self.arguments[1]))
         return pretty.format(indent, operator)
@@ -882,12 +887,12 @@ class CodeOperator(CodeExpression):
     def __repr__(self):
         """Return a string representation of this object."""
         if self.is_unary:
-            return "[{}] {}({})".format(self.result, self.name,
+            return '[{}] {}({})'.format(self.result, self.name,
                                         self.arguments[0])
-        elif self.is_binary:
-            return "[{}] ({}){}({})".format(self.result, self.arguments[0],
+        if self.is_binary:
+            return '[{}] ({}){}({})'.format(self.result, self.arguments[0],
                                             self.name, self.arguments[1])
-        return "[{}] {}".format(self.result, self.name)
+        return '[{}] {}'.format(self.result, self.name)
 
 
 class CodeFunctionCall(CodeExpression):
@@ -901,7 +906,7 @@ class CodeFunctionCall(CodeExpression):
         set to the object on which a method is being called.
     """
 
-    def __init__(self, scope, parent, name, result, paren = False):
+    def __init__(self, scope, parent, name, result, paren=False):
         """Constructor for function calls.
 
         Args:
@@ -942,35 +947,33 @@ class CodeFunctionCall(CodeExpression):
             if isinstance(codeobj, CodeExpression):
                 yield codeobj
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        indent = " " * indent
-        pretty = "{}({})" if self.parenthesis else "{}{}"
-        call = self.name
-        args = ", ".join([pretty_str(arg) for arg in self.arguments])
+        indent = ' ' * indent
+        pretty = '{}({})' if self.parenthesis else '{}{}'
+        args = ', '.join(map(pretty_str, self.arguments))
         if self.method_of:
-            call = "{}.{}({})".format(self.method_of.pretty_str(),
-                                        self.name, args)
+            call = '{}.{}({})'.format(self.method_of.pretty_str(),
+                                      self.name, args)
         elif self.is_constructor:
-            call = "new {}({})".format(self.name, args)
+            call = 'new {}({})'.format(self.name, args)
         else:
-            call = "{}({})".format(self.name, args)
+            call = '{}({})'.format(self.name, args)
         return pretty.format(indent, call)
 
     def __repr__(self):
         """Return a string representation of this object."""
-        args = ", ".join([str(arg) for arg in self.arguments])
+        args = ', '.join(map(str, self.arguments))
         if self.is_constructor:
-            return "[{}] new {}({})".format(self.result, self.name, args)
+            return '[{}] new {}({})'.format(self.result, self.name, args)
         if self.method_of:
-            return "[{}] {}.{}({})".format(self.result, self.method_of.name,
+            return '[{}] {}.{}({})'.format(self.result, self.method_of.name,
                                            self.name, args)
-        return "[{}] {}({})".format(self.result, self.name, args)
+        return '[{}] {}({})'.format(self.result, self.name, args)
 
 
 class CodeDefaultArgument(CodeExpression):
@@ -991,7 +994,7 @@ class CodeDefaultArgument(CodeExpression):
             parent (CodeEntity): This object's parent in the program tree.
             result (str): The return type of the argument in the program.
         """
-        CodeExpression.__init__(self, scope, parent, "(default)", result)
+        CodeExpression.__init__(self, scope, parent, '(default)', result)
 
 
 # ----- Statement Entities ----------------------------------------------------
@@ -1053,22 +1056,21 @@ class CodeJumpStatement(CodeStatement):
         if isinstance(self.value, CodeExpression):
             yield self.value
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        indent = " " * indent
-        if not self.value is None:
-            return indent + self.name + " " + pretty_str(self.value)
+        indent = ' ' * indent
+        if self.value is not None:
+            return '{}{} {}'.format(indent, self.name, pretty_str(self.value))
         return indent + self.name
 
     def __repr__(self):
         """Return a string representation of this object."""
-        if not self.value is None:
-            return self.name + " " + str(self.value)
+        if self.value is not None:
+            return '{} {}'.format(self.name, str(self.value))
         return self.name
 
 
@@ -1081,7 +1083,7 @@ class CodeExpressionStatement(CodeStatement):
         contained within a larger expression.
     """
 
-    def __init__(self, scope, parent, expression = None):
+    def __init__(self, scope, parent, expression=None):
         """Constructor for expression statements.
 
         Args:
@@ -1099,13 +1101,13 @@ class CodeExpressionStatement(CodeStatement):
         if isinstance(self.expression, CodeExpression):
             yield self.expression
 
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        return pretty_str(self.expression, indent = indent)
+        return pretty_str(self.expression, indent=indent)
 
     def __repr__(self):
         """Return a string representation of this object."""
@@ -1125,7 +1127,7 @@ class CodeBlock(CodeStatement, CodeStatementGroup):
         have a block as their body.
     """
 
-    def __init__(self, scope, parent, explicit = True):
+    def __init__(self, scope, parent, explicit=True):
         """Constructor for code blocks.
 
         Args:
@@ -1154,17 +1156,16 @@ class CodeBlock(CodeStatement, CodeStatementGroup):
         for codeobj in self.body:
             yield codeobj
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
         if self.body:
-            return "\n".join([stmt.pretty_str(indent) for stmt in self.body])
+            return '\n'.join(stmt.pretty_str(indent) for stmt in self.body)
         else:
-            return (" " * indent) + "[empty]"
+            return (' ' * indent) + '[empty]'
 
     def __repr__(self):
         """Return a string representation of this object."""
@@ -1201,15 +1202,14 @@ class CodeDeclaration(CodeStatement):
         for codeobj in self.variables:
             yield codeobj
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        spaces = " " * indent
-        return spaces + ", ".join([v.pretty_str() for v in self.variables])
+        spaces = ' ' * indent
+        return spaces + ', '.join(v.pretty_str() for v in self.variables)
 
     def __repr__(self):
         """Return a string representation of this object."""
@@ -1236,9 +1236,9 @@ class CodeControlFlow(CodeStatement, CodeStatementGroup):
             name (str): The name of the control flow statement in the program.
         """
         CodeStatement.__init__(self, scope, parent)
-        self.name       = name
-        self.condition  = True
-        self.body       = CodeBlock(scope, self, explicit = False)
+        self.name = name
+        self.condition = True
+        self.body = CodeBlock(scope, self, explicit=False)
 
     def get_branches(self):
         """Return a list of branches, where each branch is a pair of
@@ -1267,7 +1267,7 @@ class CodeControlFlow(CodeStatement, CodeStatementGroup):
 
     def __repr__(self):
         """Return a string representation of this object."""
-        return "{} {}".format(self.name, self.get_branches())
+        return '{} {}'.format(self.name, self.get_branches())
 
 
 class CodeConditional(CodeControlFlow):
@@ -1284,18 +1284,18 @@ class CodeConditional(CodeControlFlow):
             scope (CodeEntity): The program scope where this object belongs.
             parent (CodeEntity): This object's parent in the program tree.
         """
-        CodeControlFlow.__init__(self, scope, parent, "if")
-        self.else_body = CodeBlock(scope, self, explicit = False)
+        CodeControlFlow.__init__(self, scope, parent, 'if')
+        self.else_body = CodeBlock(scope, self, explicit=False)
 
     @property
     def then_branch(self):
         """The branch associated with a condition."""
-        return (self.condition, self.body)
+        return self.condition, self.body
 
     @property
     def else_branch(self):
         """The default branch of the conditional."""
-        return (True, self.else_body)
+        return True, self.else_body
 
     def statement(self, i):
         """Return the *i*-th statement of this block.
@@ -1315,7 +1315,7 @@ class CodeConditional(CodeControlFlow):
             if i >= o - n:
                 return self.else_body.statement(i)
             return self.body.statement(i - o + n)
-        raise IndexError("statement index out of range")
+        raise IndexError('statement index out of range')
 
     def statement_after(self, i):
         """Return the statement after the *i*-th one, or `None`."""
@@ -1361,20 +1361,19 @@ class CodeConditional(CodeControlFlow):
         for codeobj in self.else_body._children():
             yield codeobj
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        spaces = " " * indent
+        spaces = ' ' * indent
         condition = pretty_str(self.condition)
-        pretty = spaces + "if (" + condition + "):\n"
-        pretty += self.body.pretty_str(indent = indent + 2)
+        pretty = '{}if ({}):\n'.format(spaces, condition)
+        pretty += self.body.pretty_str(indent=indent + 2)
         if self.else_body:
-            pretty += "\n" + spaces + "else:\n"
-            pretty += self.else_body.pretty_str(indent = indent + 2)
+            pretty += '\n{}else:\n'.format(spaces)
+            pretty += self.else_body.pretty_str(indent=indent + 2)
         return pretty
 
 
@@ -1423,19 +1422,18 @@ class CodeLoop(CodeControlFlow):
         for codeobj in self.body._children():
             yield codeobj
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        spaces = " " * indent
+        spaces = ' ' * indent
         condition = pretty_str(self.condition)
-        v = self.declarations.pretty_str() if self.declarations else ""
-        i = self.increment.pretty_str(indent = 1) if self.increment else ""
-        pretty = spaces + "for ({}; {}; {}):\n".format(v, condition, i)
-        pretty += self.body.pretty_str(indent = indent + 2)
+        v = self.declarations.pretty_str() if self.declarations else ''
+        i = self.increment.pretty_str(indent=1) if self.increment else ''
+        pretty = '{}for ({}; {}; {}):\n'.format(spaces, v, condition, i)
+        pretty += self.body.pretty_str(indent=indent + 2)
         return pretty
 
 
@@ -1469,17 +1467,16 @@ class CodeSwitch(CodeControlFlow):
         """Add a default branch to this switch."""
         self.default_case = statement
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        spaces = " " * indent
+        spaces = ' ' * indent
         condition = pretty_str(self.condition)
-        pretty = spaces + "switch (" + condition + "):\n"
-        pretty += self.body.pretty_str(indent = indent + 2)
+        pretty = '{}switch ({}):\n'.format(spaces, condition)
+        pretty += self.body.pretty_str(indent=indent + 2)
         return pretty
 
 
@@ -1502,9 +1499,9 @@ class CodeTryBlock(CodeStatement, CodeStatementGroup):
             parent (CodeEntity): This object's parent in the program tree.
         """
         CodeStatement.__init__(self, scope, parent)
-        self.body = CodeBlock(scope, self, explicit = True)
+        self.body = CodeBlock(scope, self, explicit=True)
         self.catches = []
-        self.finally_body = CodeBlock(scope, self, explicit = True)
+        self.finally_body = CodeBlock(scope, self, explicit=True)
 
     def _set_body(self, body):
         """Set the main body for try block structure."""
@@ -1536,31 +1533,29 @@ class CodeTryBlock(CodeStatement, CodeStatementGroup):
     def __len__(self):
         """Return the length of all blocks combined."""
         n = len(self.body) + len(self.catches) + len(self.finally_body)
-        for catch_block in self.catches:
-            n += len(catch_block)
+        n += sum(map(len, self.catches))
         return n
 
     def __repr__(self):
         """Return a string representation of this object."""
-        return "try {} {} {}".format(self.body, self.catches, self.finally_body)
+        return 'try {} {} {}'.format(self.body, self.catches,
+                                     self.finally_body)
 
-
-    def pretty_str(self, indent = 0):
+    def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
         Kwargs:
             indent (int): The amount of spaces to use as indentation.
         """
-        spaces = " " * indent
-        pretty = spaces + "try:\n"
-        pretty += self.body.pretty_str(indent = indent + 2)
+        spaces = ' ' * indent
+        pretty = spaces + 'try:\n'
+        pretty += self.body.pretty_str(indent=indent + 2)
         for block in self.catches:
-            pretty += "\n" + block.pretty_str(indent)
+            pretty += '\n' + block.pretty_str(indent)
         if len(self.finally_body) > 0:
-            pretty += "\n" + spaces + "finally:\n"
-            pretty += self.finally_body.pretty_str(indent = indent + 2)
+            pretty += '\n{}finally:\n'.format(spaces)
+            pretty += self.finally_body.pretty_str(indent=indent + 2)
         return pretty
-
 
     class CodeCatchBlock(CodeStatement, CodeStatementGroup):
         """Helper class for catch statements within a try-catch block."""
@@ -1569,7 +1564,7 @@ class CodeTryBlock(CodeStatement, CodeStatementGroup):
             """Constructor for catch block structures."""
             CodeStatement.__init__(self, scope, parent)
             self.declarations = None
-            self.body = CodeBlock(scope, self, explicit = True)
+            self.body = CodeBlock(scope, self, explicit=True)
 
         def _set_declarations(self, declarations):
             """Set declarations local to this catch block."""
@@ -1591,26 +1586,27 @@ class CodeTryBlock(CodeStatement, CodeStatementGroup):
 
         def __repr__(self):
             """Return a string representation of this object."""
-            return "catch ({}) {}".format(self.declarations, self.body)
+            return 'catch ({}) {}'.format(self.declarations, self.body)
 
-
-        def pretty_str(self, indent = 0):
+        def pretty_str(self, indent=0):
             """Return a human-readable string representation of this object.
 
             Kwargs:
                 indent (int): The amount of spaces to use as indentation.
             """
-            return ((" " * indent) + "catch ("
-                    + ("..." if self.declarations is None
-                             else self.declarations.pretty_str())
-                    + "):\n" + self.body.pretty_str(indent = indent + 2))
+            spaces = ' ' * indent
+            decls = ('...' if self.declarations is None
+                     else self.declarations.pretty_str())
+            body = self.body.pretty_str(indent=indent + 2)
+            pretty = '{}catch ({}):\n{}'.format(spaces, decls, body)
+            return pretty
 
 
 ###############################################################################
 # Helpers
 ###############################################################################
 
-def pretty_str(something, indent = 0):
+def pretty_str(something, indent=0):
     """Return a human-readable string representation of an object.
 
         Uses `pretty_str` if the given value is an instance of
@@ -1623,6 +1619,6 @@ def pretty_str(something, indent = 0):
         indent (int): The amount of spaces to use as indentation.
     """
     if isinstance(something, CodeEntity):
-        return something.pretty_str(indent = indent)
+        return something.pretty_str(indent=indent)
     else:
-        return (" " * indent) + repr(something)
+        return (' ' * indent) + repr(something)
