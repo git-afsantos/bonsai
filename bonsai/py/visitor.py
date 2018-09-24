@@ -137,6 +137,14 @@ class BuilderVisitor(ast.NodeVisitor):
         self.visit(node)
         return self.builder.children[0]
 
+    def visit_alias(self, py_node):
+        if py_node.asname is None:
+            return py_node.name, self.scope, None
+
+        bonsai_node = py_model.PyAlias(self.scope, self.parent, py_node.name,
+                                       py_node.asname)
+        return bonsai_node, self.scope, None
+
     def visit_Assign(self, py_node):
         return self._make_assign(py_node)
 
@@ -211,6 +219,24 @@ class BuilderVisitor(ast.NodeVisitor):
 
     def visit_GeneratorExp(self, py_node):
         return self._make_comprehension(py_node)
+
+    def visit_Import(self, py_node):
+        bonsai_node = py_model.PyImport(self.scope, self.parent, level=0)
+        props = {
+            'modules_count': len(py_node.names),
+            'entities_count': 0,
+        }
+        return bonsai_node, self.scope, props
+
+    def visit_ImportFrom(self, py_node):
+        bonsai_node = py_model.PyImport(self.scope, self.parent,
+                                        (py_node.module,),
+                                        level=py_node.level)
+        props = {
+            'modules_count': 0,
+            'entities_count': len(py_node.names),
+        }
+        return bonsai_node, self.scope, props
 
     def visit_List(self, py_node):
         return self._make_composite_literal(py_node)

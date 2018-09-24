@@ -148,18 +148,38 @@
 #         'Is this JSON': False,
 #     }
 # }
+#
+# # Assignment
+# x = 5
+# x, y = xrange(2)
+#
+# # Augmented assignment
+# x += 3
+# y <<= x
+#
+# # Multiple assignment targets
+# a = b = 'c'
+#
+# # Delete
+# del x.y
+# del x.y, y.z
+#
+# # Import
+# import a
+# import b as c
+# import d, e as f
+# import g as h, i as j
+#
+# # Import from
+# from a import b
+# from a import b as c
+# from a import b as c, d
+# from a import b as c, d as e
+# from a import b, c as d
+#
+# # Relative imports
+# from . import b
+# from ..a import b as c
 
-# Assignment
-x = 5
-x, y = xrange(2)
-
-# Augmented assignment
-x += 3
-y <<= x
-
-# Multiple assignment targets
-a = b = 'c'
-
-# Delete
-del x.y
-del x.y, y.z
+# Wildcard imports
+from a import *

@@ -185,6 +185,17 @@ class PyBonsaiBuilder(object):
 
         return bonsai_node
 
+    def finalize_PyImport(self, bonsai_node):
+        start, end = 0, self.modules_count
+        for module in self.children[start:end]:
+            bonsai_node._add_module(module)
+
+        start, end = end, end + self.entities_count
+        for entity in self.children[start:end]:
+            bonsai_node._add_entity(entity)
+
+        return bonsai_node
+
     def finalize_PyKeyValue(self, bonsai_node):
         bonsai_node.value = self.children[0]
         return bonsai_node
