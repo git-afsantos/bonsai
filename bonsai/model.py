@@ -733,7 +733,7 @@ class CodeCompositeLiteral(CodeLiteral):
     def values(self):
         return tuple(self.value)
 
-    def _add_value(self, child):
+    def _add(self, child):
         """Add a value to the sequence in this composition."""
         self.value.append(child)
 
@@ -875,7 +875,7 @@ class CodeOperator(CodeExpression):
     @property
     def is_assignment(self):
         """Whether this is an assignment operator."""
-        return self.name == "="
+        return self.name == '='
 
     def _add(self, codeobj):
         """Add a child (argument) to this object."""
