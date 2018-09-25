@@ -60,11 +60,24 @@ class ASTPreprocessor(ast.NodeTransformer):
         'True': Bool,
     }
 
-    def visit_Name(self, node):
+    print_name = ast.Name('print', ast.Load())
+
+    def visit_Name(self, n):
         try:
-            return self.name_mappings[node.id](node)
+            return self.name_mappings[n.id](n)
         except KeyError:
-            return node
+            return n
+
+    def visit_Print(self, n):
+        args = (n.values[0].elts
+                if len(n.values) == 1 and isinstance(n.values[0], ast.Tuple)
+                else n.values)
+        keywords = ([ast.keyword('file', n.dest, lineno=n.lineno,
+                                 col_offset=n.col_offset)]
+                    if n.dest is not None
+                    else None)
+        return ast.Call(self.print_name, args, keywords, None, None,
+                        lineno=n.lineno, col_offset=n.col_offset)
 
 
 ###############################################################################

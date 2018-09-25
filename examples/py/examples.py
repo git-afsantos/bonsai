@@ -182,4 +182,13 @@
 # from ..a import b as c
 
 # Wildcard imports
-from a import *
+# from a import *
+
+# Print statement
+print a
+
+# Print statement with redirect
+print >> sys.stderr, a
+
+# Printing a single tuple (mimicking Python 3)
+print(a, b)
