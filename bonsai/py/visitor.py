@@ -86,6 +86,16 @@ class ASTPreprocessor(ast.NodeTransformer):
 ###############################################################################
 
 
+variable_contexts = {
+    ast.AugLoad: py_model.PyVariable.Context.REFERENCE,
+    ast.AugStore: py_model.PyVariable.Context.DEFINITION,
+    ast.Del: py_model.PyVariable.Context.DELETION,
+    ast.Load: py_model.PyVariable.Context.REFERENCE,
+    ast.Param: py_model.PyVariable.Context.PARAMETER,
+    ast.Store: py_model.PyVariable.Context.DEFINITION,
+}
+
+
 class BuilderVisitor(ast.NodeVisitor):
 
     @classmethod
@@ -280,9 +290,19 @@ class BuilderVisitor(ast.NodeVisitor):
         return bonsai_node, bonsai_node, None
 
     def visit_Name(self, py_node):
-        # Still need to handle definitions (just use py_node.ctx)
-        bonsai_node = py_model.PyReference(self.scope, self.parent, py_node.id,
-                                           None)
+        Context = py_model.PyVariable.Context
+
+        context = variable_contexts[py_node.ctx.__class__]
+        name = py_node.id
+
+        if context.is_reference:
+            bonsai_node = py_model.PyReference(self.scope, self.parent, name,
+                                               None)
+
+        if context.is_definition:
+            bonsai_node = py_model.PyVariable(self.scope, self.parent, name,
+                                              context)
+
         return bonsai_node, self.scope, None
 
     def visit_NoneAST(self, py_node):

@@ -21,6 +21,7 @@
 ###############################################################################
 # Imports
 ###############################################################################
+from enum import Enum
 
 from bonsai.model import *
 from bonsai.py import parentheses
@@ -38,11 +39,122 @@ PyBlock = CodeBlock
 # ----- Common Entities -------------------------------------------------------
 
 
+class PyFunction(CodeFunction):
+    def __init__(self, scope, parent, name, result=None, params=None):
+        CodeFunction.__init__(self, scope, parent, 0, name, result)
+        self.parameters = params
+
+    def _children(self):
+        yield self.parameters
+
+        for stmt in self.body._children():
+            yield stmt
+
+    @property
+    def is_definition(self):
+        return True
+
+    def __repr__(self):
+        return '[{}] {}({!r})'.format(self.result, self.name, self.parameters)
+
+    def pretty_str(self, indent=0):
+        body = '\n'.join(pretty_str(stmt, indent + 4) for stmt in self.body)
+        return '{}{} {}({}):\n{}'.format(' ' * indent, self.result, self.name,
+                                         pretty_str(self.parameters), body)
+
+
 class PyModule(CodeGlobalScope):
     def _add(self, codeobj):
         # Unlike C++, pretty much anything can be defined at global level.
         # The parent has an assertion that stands in the way
         self.children.append(codeobj)
+
+
+class PyParameters(CodeEntity):
+    def __init__(self, scope, parent, pos_args=(), star_args=None,
+                 kw_args=None):
+        CodeEntity.__init__(self, scope, parent)
+        self.pos_args = pos_args
+        self.star_args = star_args
+        self.kw_args = kw_args
+
+    def _add(self, pos_arg, default=None):
+        if default is not None:
+            if isinstance(default, CodeEntity):
+                key_val = PyKeyValue(default.scope, self, pos_arg, default)
+                default.parent = key_val
+            else:
+                key_val = PyKeyValue(self.scope, self, pos_arg, default)
+
+            pos_arg.parent = key_val
+            pos_arg = key_val
+
+        self.pos_args = self.pos_args + (pos_arg,)
+
+    def _children(self):
+        for pos_arg in self.pos_args:
+            yield pos_arg
+
+        if isinstance(self.star_args, CodeEntity):
+            yield self.star_args
+
+        if isinstance(self.kw_args, CodeEntity):
+            yield self.kw_args
+
+    def __contains__(self, item):
+        return (item == self.star_args
+                or item == self.kw_args
+                or item in (arg.name if isinstance(arg, PyKeyValue) else arg
+                            for arg in self.pos_args))
+
+    def __repr__(self):
+        pos_args = ', '.join(map(repr, self.pos_args))
+        return '{}, *{!r}, **{!r}'.format(pos_args, self.star_args,
+                                          self.kw_args)
+
+    def pretty_str(self, indent=0):
+        args = list(map(pretty_str, self.pos_args))
+
+        if self.star_args is not None:
+            args.append('*{}'.format(pretty_str(self.star_args)))
+
+        if self.kw_args is not None:
+            args.append('**{}'.format(pretty_str(self.kw_args)))
+
+        return ', '.join(args)
+
+
+class PyVariable(CodeVariable):
+    class Context(Enum):
+        DEFINITION = 0,
+        DELETION = 1,
+        PARAMETER = 2,
+        REFERENCE = 3
+
+        @property
+        def is_definition(self):
+            return self in (self.DEFINITION, self.PARAMETER)
+
+        @property
+        def is_reference(self):
+            return self in (self.DELETION, self.REFERENCE)
+
+    def __init__(self, scope, parent, name, context, result=None):
+        CodeVariable.__init__(self, scope, parent, 0, name, result)
+        self.context = context
+
+    @property
+    def is_definition(self):
+        return self.context.is_definition or self.is_parameter
+
+    @property
+    def is_parameter(self):
+        return (self.context == self.Context.PARAMETER
+                or super(CodeVariable, self).is_parameter)
+
+    def pretty_str(self, indent=0):
+        result = self.result + ' ' if self.result is not None else ''
+        return '{}{}{}'.format(' ' * indent, result, self.name)
 
 
 # ----- Statement Entities ----------------------------------------------------
@@ -81,6 +193,13 @@ class PyAssignment(PyStatement, CodeOperator):
     @property
     def is_unary(self):
         return False
+
+    def _add(self, child):
+        assert (isinstance(child, CodeExpression.TYPES)
+                or isinstance(child, CodeVariable)
+                and child.context == PyVariable.Context.DEFINITION)
+
+        self.arguments = self.arguments + (child,)
 
     def __repr__(self):
         # Multiple targets are used like this (`a` and `b`): a = b = 1
@@ -195,78 +314,6 @@ class PyAlias(PyStatement):
         return '{}{} as {}'.format(' ' * indent, self.name, self.alias)
 
 
-class PyFunction(CodeFunction):
-    def __init__(self, scope, parent, name, result=None, params=None):
-        CodeFunction.__init__(self, scope, parent, 0, name, result)
-        self.parameters = params
-
-    def _children(self):
-        yield self.parameters
-
-        for stmt in self.body._children():
-            yield stmt
-
-    @property
-    def is_definition(self):
-        return True
-
-    def __repr__(self):
-        return '[{}] {}({!r})'.format(self.result, self.name, self.parameters)
-
-    def pretty_str(self, indent=0):
-        body = '\n'.join(pretty_str(stmt, indent + 4) for stmt in self.body)
-        return '{}{} {}({}):\n{}'.format(' ' * indent, self.result, self.name,
-                                         pretty_str(self.parameters), body)
-
-
-class PyParameters(CodeEntity):
-    def __init__(self, scope, parent, pos_args=(), star_args=None,
-                 kw_args=None):
-        CodeEntity.__init__(self, scope, parent)
-        self.pos_args = pos_args
-        self.star_args = star_args
-        self.kw_args = kw_args
-
-    def _add(self, pos_arg, default=None):
-        if default is not None:
-            if isinstance(default, CodeEntity):
-                key_val = PyKeyValue(default.scope, self, pos_arg, default)
-                default.parent = key_val
-            else:
-                key_val = PyKeyValue(self.scope, self, pos_arg, default)
-
-            pos_arg.parent = key_val
-            pos_arg = key_val
-
-        self.pos_args = self.pos_args + (pos_arg,)
-
-    def _children(self):
-        for pos_arg in self.pos_args:
-            yield pos_arg
-
-        if isinstance(self.star_args, CodeEntity):
-            yield self.star_args
-
-        if isinstance(self.kw_args, CodeEntity):
-            yield self.kw_args
-
-    def __repr__(self):
-        pos_args = ', '.join(map(repr, self.pos_args))
-        return '{}, *{!r}, **{!r}'.format(pos_args, self.star_args,
-                                          self.kw_args)
-
-    def pretty_str(self, indent=0):
-        args = list(map(pretty_str, self.pos_args))
-
-        if self.star_args is not None:
-            args.append('*{}'.format(pretty_str(self.star_args)))
-
-        if self.kw_args is not None:
-            args.append('**{}'.format(pretty_str(self.kw_args)))
-
-        return ', '.join(args)
-
-
 # ----- Expression Entities ---------------------------------------------------
 
 PyExpression = CodeExpression
@@ -274,8 +321,6 @@ PyExpression = CodeExpression
 PyExpressionStatement = CodeExpressionStatement
 
 PyReference = CodeReference
-
-PyVariable = CodeVariable
 
 PyNull = CodeNull
 

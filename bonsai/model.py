@@ -203,9 +203,7 @@ class CodeVariable(CodeEntity):
             statement (e.g. a block), or a function, given that the variable
             is not one of the function's parameters.
         """
-        return (isinstance(self.scope, CodeStatement)
-                or (isinstance(self.scope, CodeFunction)
-                    and self not in self.scope.parameters))
+        return isinstance(self.scope, CodeStatement) or self.is_parameter
 
     @property
     def is_global(self):
