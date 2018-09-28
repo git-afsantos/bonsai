@@ -33,6 +33,7 @@ from inspect import getmembers, isroutine
 from bonsai.py import composite_names, comprehension_names, operator_names
 from bonsai.py.builder import PyBonsaiBuilder
 
+
 ###############################################################################
 # Transformer
 ###############################################################################
@@ -158,6 +159,15 @@ class BuilderVisitor(ast.NodeVisitor):
                                        py_node.asname)
         return bonsai_node, self.scope, None
 
+    def visit_arguments(self, py_node):
+        bonsai_node = py_model.PyParameters(self.scope, self.parent,
+                                            star_args=py_node.vararg,
+                                            kw_args=py_node.kwarg)
+        props = dict(self.builder.props,
+                     args_count=len(py_node.args),
+                     defaults_count=len(py_node.defaults))
+        return bonsai_node, self.scope, props
+
     def visit_Assign(self, py_node):
         return self._make_assign(py_node)
 
@@ -229,6 +239,14 @@ class BuilderVisitor(ast.NodeVisitor):
     def visit_keyword(self, py_node):
         bonsai_node = py_model.PyKeyValue(self.scope, self.parent, py_node.arg)
         return bonsai_node, self.scope, None
+
+    def visit_FunctionDef(self, py_node):
+        bonsai_node = py_model.PyFunction(self.scope, self.parent,
+                                          py_node.name)
+        props = {
+            'parent_scope': self.scope
+        }
+        return bonsai_node, bonsai_node, props
 
     def visit_GeneratorExp(self, py_node):
         return self._make_comprehension(py_node)

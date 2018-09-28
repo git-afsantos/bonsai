@@ -162,6 +162,20 @@ class PyBonsaiBuilder(object):
         bonsai_node.expression = self.children[0]
         return bonsai_node
 
+    def finalize_PyFunction(self, bonsai_node):
+        bonsai_node.parameters = self.children[0]
+
+        for stmt in self.children[1:]:
+            if not isinstance(stmt, bonsai_model.CodeStatement):
+                expr = py_model.PyExpressionStatement(self.scope, self.parent,
+                                                      stmt)
+                stmt.parent = expr
+                stmt = expr
+
+            bonsai_node._add(stmt)
+
+        return bonsai_node
+
     def finalize_PyFunctionCall(self, bonsai_node):
         function_name = self.children[0]
         bonsai_node.name = function_name.name
@@ -209,6 +223,23 @@ class PyBonsaiBuilder(object):
             return self._expand_compare(bonsai_node.scope, bonsai_node.parent,
                                         ops)
         return self._add_all_children(bonsai_node)
+
+    def finalize_PyParameters(self, bonsai_node):
+        mandatory_count = self.args_count - self.defaults_count
+
+        start, end = 0, self.args_count
+        args = self.children[start:end]
+
+        start, end = end, end + self.defaults_count
+        defaults = [None] * mandatory_count + self.children[start:end]
+        for default in defaults:
+            if isinstance(default, bonsai_model.CodeEntity):
+                default.scope = self.parent_scope
+
+        for arg, default in zip(args, defaults):
+            bonsai_node._add(arg, default)
+
+        return bonsai_node
 
     def finalize_PyReference(self, bonsai_node):
         if self.children:

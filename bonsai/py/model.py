@@ -33,6 +33,8 @@ PyEntity = CodeEntity
 
 PyStatementGroup = CodeStatementGroup
 
+PyBlock = CodeBlock
+
 # ----- Common Entities -------------------------------------------------------
 
 
@@ -193,6 +195,78 @@ class PyAlias(PyStatement):
         return '{}{} as {}'.format(' ' * indent, self.name, self.alias)
 
 
+class PyFunction(CodeFunction):
+    def __init__(self, scope, parent, name, result=None, params=None):
+        CodeFunction.__init__(self, scope, parent, 0, name, result)
+        self.parameters = params
+
+    def _children(self):
+        yield self.parameters
+
+        for stmt in self.body._children():
+            yield stmt
+
+    @property
+    def is_definition(self):
+        return True
+
+    def __repr__(self):
+        return '[{}] {}({!r})'.format(self.result, self.name, self.parameters)
+
+    def pretty_str(self, indent=0):
+        body = '\n'.join(pretty_str(stmt, indent + 4) for stmt in self.body)
+        return '{}{} {}({}):\n{}'.format(' ' * indent, self.result, self.name,
+                                         pretty_str(self.parameters), body)
+
+
+class PyParameters(CodeEntity):
+    def __init__(self, scope, parent, pos_args=(), star_args=None,
+                 kw_args=None):
+        CodeEntity.__init__(self, scope, parent)
+        self.pos_args = pos_args
+        self.star_args = star_args
+        self.kw_args = kw_args
+
+    def _add(self, pos_arg, default=None):
+        if default is not None:
+            if isinstance(default, CodeEntity):
+                key_val = PyKeyValue(default.scope, self, pos_arg, default)
+                default.parent = key_val
+            else:
+                key_val = PyKeyValue(self.scope, self, pos_arg, default)
+
+            pos_arg.parent = key_val
+            pos_arg = key_val
+
+        self.pos_args = self.pos_args + (pos_arg,)
+
+    def _children(self):
+        for pos_arg in self.pos_args:
+            yield pos_arg
+
+        if isinstance(self.star_args, CodeEntity):
+            yield self.star_args
+
+        if isinstance(self.kw_args, CodeEntity):
+            yield self.kw_args
+
+    def __repr__(self):
+        pos_args = ', '.join(map(repr, self.pos_args))
+        return '{}, *{!r}, **{!r}'.format(pos_args, self.star_args,
+                                          self.kw_args)
+
+    def pretty_str(self, indent=0):
+        args = list(map(pretty_str, self.pos_args))
+
+        if self.star_args is not None:
+            args.append('*{}'.format(pretty_str(self.star_args)))
+
+        if self.kw_args is not None:
+            args.append('**{}'.format(pretty_str(self.kw_args)))
+
+        return ', '.join(args)
+
+
 # ----- Expression Entities ---------------------------------------------------
 
 PyExpression = CodeExpression
@@ -237,11 +311,14 @@ class PyOperator(CodeOperator, PyExpression):
                 else CodeOperator.__repr__(self))
 
     def pretty_str(self, indent=0):
+        spaces = ' ' * indent
+
         if self.is_ternary:
-            return 'if {1} then {0} else {2}'.format(*self.arguments)
+            return '{0}if {2} then {1} else {3}'.format(spaces,
+                                                        *self.arguments)
 
         if self.name == 'not':
-            return 'not {}'.format(*self.arguments)
+            return '{}not {}'.format(spaces, *self.arguments)
 
         return CodeOperator.pretty_str(self, indent=indent)
 
@@ -259,22 +336,20 @@ class PyFunctionCall(CodeFunctionCall, PyExpression):
         self.kw_args = kw_args
 
     def pretty_str(self, indent=0):
-        args = filter(lambda s: s != '', (
-            ', '.join(map(pretty_str, self.arguments)),
-            ', '.join(map(pretty_str, self.named_args)),
-            ('*{}'.format(pretty_str(self.star_args))
-                if self.star_args is not None
-                else ''),
-            ('**{}'.format(pretty_str(self.kw_args))
-                if self.kw_args is not None
-                else ''),
-        ))
+        args = (list(map(pretty_str, self.arguments))
+                + list(map(pretty_str, self.named_args)))
+
+        if self.star_args is not None:
+            args.append('*{}'.format(pretty_str(self.star_args)))
+
+        if self.kw_args is not None:
+            args.append('**{}'.format(pretty_str(self.kw_args)))
 
         name = ('{}.{}'.format(pretty_str(self.method_of), self.name)
                 if self.method_of is not None
                 else self.name)
 
-        return '{}({})'.format(name, ', '.join(args))
+        return '{}{}({})'.format(' ' * indent, name, ', '.join(args))
 
 
 class PyComprehension(PyExpression):
