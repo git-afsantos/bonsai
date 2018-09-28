@@ -152,9 +152,12 @@ class PyVariable(CodeVariable):
         return (self.context == self.Context.PARAMETER
                 or super(CodeVariable, self).is_parameter)
 
+    def __repr__(self):
+        return '{} :{}'.format(self.name, self.result or 'any')
+
     def pretty_str(self, indent=0):
-        result = self.result + ' ' if self.result is not None else ''
-        return '{}{}{}'.format(' ' * indent, result, self.name)
+        result = ' :' + self.result if self.result is not None else ''
+        return '{}{}{}'.format(' ' * indent, self.name, result)
 
 
 # ----- Statement Entities ----------------------------------------------------
@@ -200,6 +203,11 @@ class PyAssignment(PyStatement, CodeOperator):
                 and child.context == PyVariable.Context.DEFINITION)
 
         self.arguments = self.arguments + (child,)
+
+    def _children(self):
+        for arg in self.arguments:
+            if isinstance(arg, CodeEntity):
+                yield arg
 
     def __repr__(self):
         # Multiple targets are used like this (`a` and `b`): a = b = 1
