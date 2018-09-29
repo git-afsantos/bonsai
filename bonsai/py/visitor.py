@@ -134,6 +134,19 @@ class BuilderVisitor(ast.NodeVisitor):
                                                comp_name, None, None)
         return bonsai_node, bonsai_node, None
 
+    def _make_name(self, py_node, name):
+        context = variable_contexts[py_node.ctx.__class__]
+
+        if context.is_reference:
+            bonsai_node = py_model.PyReference(self.scope, self.parent, name,
+                                               None)
+
+        if context.is_definition:
+            bonsai_node = py_model.PyVariable(self.scope, self.parent, name,
+                                              context)
+
+        return bonsai_node, self.scope, None
+
     def _make_operator(self, py_node):
         op_name = (operator_names.get(py_node.__class__)
                    or operator_names[py_node.op.__class__])
@@ -182,10 +195,7 @@ class BuilderVisitor(ast.NodeVisitor):
         return self._make_assign(py_node)
 
     def visit_Attribute(self, py_node):
-        # Still need to handle definitions (just use py_node.ctx)
-        bonsai_node = py_model.PyReference(self.scope, self.parent,
-                                           py_node.attr, None)
-        return bonsai_node, self.scope, None
+        return self._make_name(py_node, py_node.attr)
 
     def visit_AugAssign(self, py_node):
         return self._make_assign(py_node)
@@ -290,20 +300,7 @@ class BuilderVisitor(ast.NodeVisitor):
         return bonsai_node, bonsai_node, None
 
     def visit_Name(self, py_node):
-        Context = py_model.PyVariable.Context
-
-        context = variable_contexts[py_node.ctx.__class__]
-        name = py_node.id
-
-        if context.is_reference:
-            bonsai_node = py_model.PyReference(self.scope, self.parent, name,
-                                               None)
-
-        if context.is_definition:
-            bonsai_node = py_model.PyVariable(self.scope, self.parent, name,
-                                              context)
-
-        return bonsai_node, self.scope, None
+        return self._make_name(py_node, py_node.id)
 
     def visit_NoneAST(self, py_node):
         bonsai_node = py_model.PyNull(self.scope, self.parent)

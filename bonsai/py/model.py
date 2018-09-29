@@ -30,13 +30,56 @@ from bonsai.py import parentheses
 # Language Model
 ###############################################################################
 
+# ----- Common Entities -------------------------------------------------------
+
 PyEntity = CodeEntity
 
 PyStatementGroup = CodeStatementGroup
 
 PyBlock = CodeBlock
 
-# ----- Common Entities -------------------------------------------------------
+
+class PyModule(CodeGlobalScope):
+    def _add(self, codeobj):
+        # Unlike C++, pretty much anything can be defined at global level.
+        # The parent has an assertion that stands in the way
+        self.children.append(codeobj)
+
+
+class PyVariable(CodeVariable):
+    class Context(Enum):
+        DEFINITION = 0,
+        DELETION = 1,
+        PARAMETER = 2,
+        REFERENCE = 3
+
+        @property
+        def is_definition(self):
+            return self in (self.DEFINITION, self.PARAMETER)
+
+        @property
+        def is_reference(self):
+            return self in (self.DELETION, self.REFERENCE)
+
+    def __init__(self, scope, parent, name, context, result=None):
+        CodeVariable.__init__(self, scope, parent, 0, name, result)
+        self.context = context
+
+    @property
+    def is_definition(self):
+        return self.context.is_definition or self.is_parameter
+
+    @property
+    def is_parameter(self):
+        return (self.context == self.Context.PARAMETER
+                or super(CodeVariable, self).is_parameter)
+
+    def __repr__(self):
+        return '{} :{}'.format(self.name, self.result or 'any')
+
+    def pretty_str(self, indent=0):
+        result = ' :' + self.result if self.result is not None else ''
+        return '{}{}{}'.format(' ' * indent, self.name, result)
 
 
 class PyFunction(CodeFunction):
@@ -61,13 +104,6 @@ class PyFunction(CodeFunction):
         body = '\n'.join(pretty_str(stmt, indent + 4) for stmt in self.body)
         return '{}{} {}({}):\n{}'.format(' ' * indent, self.result, self.name,
                                          pretty_str(self.parameters), body)
-
-
-class PyModule(CodeGlobalScope):
-    def _add(self, codeobj):
-        # Unlike C++, pretty much anything can be defined at global level.
-        # The parent has an assertion that stands in the way
-        self.children.append(codeobj)
 
 
 class PyParameters(CodeEntity):
@@ -122,42 +158,6 @@ class PyParameters(CodeEntity):
             args.append('**{}'.format(pretty_str(self.kw_args)))
 
         return ', '.join(args)
-
-
-class PyVariable(CodeVariable):
-    class Context(Enum):
-        DEFINITION = 0,
-        DELETION = 1,
-        PARAMETER = 2,
-        REFERENCE = 3
-
-        @property
-        def is_definition(self):
-            return self in (self.DEFINITION, self.PARAMETER)
-
-        @property
-        def is_reference(self):
-            return self in (self.DELETION, self.REFERENCE)
-
-    def __init__(self, scope, parent, name, context, result=None):
-        CodeVariable.__init__(self, scope, parent, 0, name, result)
-        self.context = context
-
-    @property
-    def is_definition(self):
-        return self.context.is_definition or self.is_parameter
-
-    @property
-    def is_parameter(self):
-        return (self.context == self.Context.PARAMETER
-                or super(CodeVariable, self).is_parameter)
-
-    def __repr__(self):
-        return '{} :{}'.format(self.name, self.result or 'any')
-
-    def pretty_str(self, indent=0):
-        result = ' :' + self.result if self.result is not None else ''
-        return '{}{}{}'.format(' ' * indent, self.name, result)
 
 
 # ----- Statement Entities ----------------------------------------------------

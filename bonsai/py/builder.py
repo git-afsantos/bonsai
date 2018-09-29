@@ -246,3 +246,10 @@ class PyBonsaiBuilder(object):
             bonsai_node._set_field(self.children[0])
 
         return bonsai_node
+
+    def finalize_PyVariable(self, bonsai_node):
+        print(self.children)
+        if self.children:
+            bonsai_node.member_of = self.children[0]
+
+        return bonsai_node

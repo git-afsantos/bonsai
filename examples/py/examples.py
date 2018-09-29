@@ -160,6 +160,9 @@ y <<= x
 # Multiple assignment targets
 a = b = 'c'
 
+# Member assignment
+a.b = 9
+
 # Delete
 del x.y
 del x.y, y.z
