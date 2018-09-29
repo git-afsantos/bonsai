@@ -42,12 +42,12 @@ with open(file_name) as source:
 
     # print(ast.dump(tree))
     # print(bonsai_tree.pretty_str())
-    bonsai_tree.pretty_str()
+    # bonsai_tree.pretty_str()
 
-    # for child in bonsai_tree.walk_preorder():
-    #     print('{} ({}): {!r} -- parent: {!r}'.format(
-    #             type(child).__name__,
-    #             id(child) % 100000,
-    #             child,
-    #             None if child.parent is None else id(child.parent) % 100000))
+    for child in bonsai_tree.walk_preorder():
+        print('{} ({}): {!r} -- parent: {!r}'.format(
+                type(child).__name__,
+                id(child) % 100000,
+                child,
+                None if child.parent is None else id(child.parent) % 100000))
 

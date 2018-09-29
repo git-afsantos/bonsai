@@ -221,6 +221,14 @@ class BuilderVisitor(ast.NodeVisitor):
         }
         return bonsai_node, self.scope, props
 
+    def visit_ClassDef(self, py_node):
+        bonsai_node = py_model.PyClass(self.scope, self.parent, py_node.name)
+        props = {
+            'bases_count': len(py_node.bases),
+            'members_count': len(py_node.body),
+        }
+        return bonsai_node, bonsai_node, props
+
     def visit_Compare(self, py_node):
         # No chained comparisons here
         if len(py_node.ops) == 1:

@@ -64,6 +64,11 @@ class PyVariable(CodeVariable):
     def __init__(self, scope, parent, name, context, result=None):
         CodeVariable.__init__(self, scope, parent, 0, name, result)
         self.context = context
+        self.attribute_of = None
+
+    @property
+    def is_attribute(self):
+        return isinstance(self.attribute_of, CodeReference)
 
     @property
     def is_definition(self):
@@ -74,12 +79,26 @@ class PyVariable(CodeVariable):
         return (self.context == self.Context.PARAMETER
                 or super(CodeVariable, self).is_parameter)
 
+    def _children(self):
+        if isinstance(self.attribute_of, CodeEntity):
+            yield self.attribute_of
+
+        if isinstance(self.value, CodeEntity):
+            yield self.value
+
     def __repr__(self):
         return '{} :{}'.format(self.name, self.result or 'any')
 
     def pretty_str(self, indent=0):
-        result = ' :' + self.result if self.result is not None else ''
-        return '{}{}{}'.format(' ' * indent, self.name, result)
+        format_str = '{}{}'
+
+        if self.is_attribute:
+            format_str = '{}%s.{}' % pretty_str(self.attribute_of)
+
+        if self.result is not None:
+            format_str += ' :' + self.result
+
+        return format_str.format(' ' * indent, self.name)
 
 
 class PyFunction(CodeFunction):
@@ -158,6 +177,15 @@ class PyParameters(CodeEntity):
             args.append('**{}'.format(pretty_str(self.kw_args)))
 
         return ', '.join(args)
+
+
+class PyClass(CodeClass):
+    def __init__(self, scope, parent, name):
+        CodeClass.__init__(self, scope, parent, 0, name)
+
+    @property
+    def is_definition(self):
+        return True
 
 
 # ----- Statement Entities ----------------------------------------------------

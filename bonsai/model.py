@@ -420,7 +420,7 @@ class CodeClass(CodeEntity):
         spaces = ' ' * indent
         pretty = spaces + 'class ' + self.name
         if self.superclasses:
-            superclasses = ', '.join(self.superclasses)
+            superclasses = ', '.join(map(pretty_str, self.superclasses))
             pretty += '(' + superclasses + ')'
         pretty += ':\n'
         if self.members:

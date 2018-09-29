@@ -197,6 +197,11 @@ print >> sys.stderr, a
 print(a, b)
 
 # Function definition, with args and kwargs
-def aaaa(a, b=x, d=7, *c, **kk):
+def my_function(a, b=x, d=7, *c, **kk):
     a = 4
     print(27)
+
+# Class definition
+class MyClass(object):
+    def __init__(self):
+        self.a = 5

@@ -123,6 +123,16 @@ class PyBonsaiBuilder(object):
     def finalize_PyAssignment(self, bonsai_node):
         return self._add_all_children(bonsai_node)
 
+    def finalize_PyClass(self, bonsai_node):
+        start, end = 0, self.bases_count
+        bonsai_node.superclasses = self.children[start:end]
+
+        start, end = end, end + self.members_count
+        for member in self.children[start:end]:
+            bonsai_node._add(member)
+
+        return bonsai_node
+
     def finalize_PyCompositeLiteral(self, bonsai_node):
         if bonsai_node.result == 'dict':
             half = len(self.children) // 2
@@ -248,8 +258,7 @@ class PyBonsaiBuilder(object):
         return bonsai_node
 
     def finalize_PyVariable(self, bonsai_node):
-        print(self.children)
         if self.children:
-            bonsai_node.member_of = self.children[0]
+            bonsai_node.attribute_of = self.children[0]
 
         return bonsai_node
