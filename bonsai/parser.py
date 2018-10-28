@@ -31,8 +31,9 @@
 # Imports
 ###############################################################################
 
-from .model import CodeExpression, CodeExpressionStatement, \
-                   CodeFunction, CodeGlobalScope
+from .model import (
+    CodeExpression, CodeExpressionStatement, CodeVariable, CodeGlobalScope
+)
 
 
 ###############################################################################
@@ -174,6 +175,9 @@ class CodeTopLevelBuilder(CodeEntityBuilder):
 # AST Parsing
 ###############################################################################
 
+class MultipleDefinitionError(Exception):
+    pass
+
 class AnalysisData(object):
     def __init__(self):
         self.entities   = {}    # id -> CodeEntity
@@ -185,12 +189,16 @@ class AnalysisData(object):
             codeobj._definition = previous
             return
         if not declaration and not previous is None:
+            if not isinstance(codeobj, CodeVariable):
+                assert not isinstance(previous, CodeVariable)
+                if previous.is_definition:
+                    raise MultipleDefinitionError("Multiple definitions for "
+                                                  + codeobj.name)
+                previous._definition = codeobj
             for ref in previous.references:
                 codeobj.references.append(ref)
                 ref.reference = codeobj
             previous.references = []
-            if isinstance(codeobj, CodeFunction):
-                previous._definition = codeobj
         self.entities[codeobj.id] = codeobj
         if codeobj.id in self._refs:
             for ref in self._refs[codeobj.id]:
