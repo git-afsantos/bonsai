@@ -260,7 +260,7 @@ class CodeFunction(CodeEntity, CodeStatementGroup):
         set to the corresponding class.
     """
 
-    def __init__(self, scope, parent, id, name, result):
+    def __init__(self, scope, parent, id, name, result, definition=True):
         """Constructor for functions.
 
         Args:
@@ -278,7 +278,7 @@ class CodeFunction(CodeEntity, CodeStatementGroup):
         self.body = CodeBlock(self, self, explicit=True)
         self.member_of = None
         self.references = []
-        self._definition = self
+        self._definition = self if definition else None
 
     @property
     def is_definition(self):
@@ -358,7 +358,7 @@ class CodeClass(CodeEntity):
         have its `member_of` set to the corresponding class.
     """
 
-    def __init__(self, scope, parent, id_, name):
+    def __init__(self, scope, parent, id_, name, definition=True):
         """Constructor for classes.
 
         Args:
@@ -374,7 +374,7 @@ class CodeClass(CodeEntity):
         self.superclasses = []
         self.member_of = None
         self.references = []
-        self._definition = self
+        self._definition = self if definition else None
 
     @property
     def is_definition(self):

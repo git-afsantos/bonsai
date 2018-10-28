@@ -45,8 +45,9 @@ class CppVariable(CodeVariable):
 
 
 class CppFunction(CodeFunction):
-    def __init__(self, scope, parent, id, name, result):
-        CodeFunction.__init__(self, scope, parent, id, name, result)
+    def __init__(self, scope, parent, id, name, result, definition=True):
+        CodeFunction.__init__(self, scope, parent, id, name, result,
+                              definition=definition)
         self.full_type = result
         self.result = result[6:] if result.startswith("const ") else result
         self.template_parameters = 0

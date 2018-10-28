@@ -29,7 +29,7 @@ import os
 
 import clang.cindex as clang
 
-from ..parser import AnalysisData
+from ..parser import AnalysisData, MultipleDefinitionError
 from .model import *
 
 
@@ -737,7 +737,11 @@ class CppTopLevelBuilder(CppEntityBuilder):
                     for c in cursor.get_children():
                         builders.append(CppStatementBuilder(c, cppobj, cppobj))
                 cursor = next(children, None)
-            data.register(cppobj, declaration = declaration)
+            cppobj._definition = cppobj if not declaration else None
+            try:
+                data.register(cppobj, declaration=declaration)
+            except MultipleDefinitionError as e:
+                return None # TODO warning
             return (cppobj, builders)
         return None
 
@@ -745,13 +749,18 @@ class CppTopLevelBuilder(CppEntityBuilder):
         if self.cursor.kind == CK.CLASS_DECL:
             id = self.cursor.get_usr()
             cppobj = CppClass(self.scope, self.parent, id, self.name)
-            data.register(cppobj)
             builders = []
+            declaration = True
             for cursor in self.cursor.get_children():
                 if cursor.kind == CK.CXX_BASE_SPECIFIER:
                     cppobj.superclasses.append(cursor.spelling)
                 else:
+                    declaration = False
                     builders.append(CppTopLevelBuilder(cursor, cppobj, cppobj))
+            try:
+                data.register(cppobj, declaration=declaration)
+            except MultipleDefinitionError as e:
+                return None # TODO warning
             return (cppobj, builders)
         return None
 
