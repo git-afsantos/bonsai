@@ -418,10 +418,13 @@ class CodeClass(CodeEntity):
             superclasses = ', '.join(self.superclasses)
             pretty += '(' + superclasses + ')'
         pretty += ':\n'
-        pretty += '\n\n'.join(
-                c.pretty_str(indent + 2)
-                for c in self.members
-        )
+        if self.members:
+            pretty += '\n\n'.join(
+                    c.pretty_str(indent + 2)
+                    for c in self.members
+            )
+        else:
+            pretty += spaces + '  [declaration]'
         return pretty
 
     def __repr__(self):
