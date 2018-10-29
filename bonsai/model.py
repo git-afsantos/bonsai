@@ -80,7 +80,9 @@ class CodeEntity(object):
 
     def _children(self):
         """Yield all direct children of this object."""
-        yield
+        # The default implementation has no children, and thus should return
+        # an empty iterator.
+        return iter(())
 
     def _lookup_parent(self, cls):
         """Lookup a transitive parent object that is an instance
