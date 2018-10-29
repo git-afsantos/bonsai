@@ -379,7 +379,7 @@ class CodeClass(CodeEntity):
     @property
     def is_definition(self):
         """Whether this is a definition or a declaration of the class."""
-        return True    # TODO
+        return self._definition is self
 
     def _add(self, codeobj):
         """Add a child (function, variable, class) to this object."""
@@ -400,7 +400,8 @@ class CodeClass(CodeEntity):
         """
         for codeobj in self.members:
             if not codeobj.is_definition:
-                codeobj._definition.member_of = self
+                if not codeobj._definition is None:
+                    codeobj._definition.member_of = self
             codeobj._afterpass()
 
     def pretty_str(self, indent=0):

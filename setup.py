@@ -8,7 +8,7 @@ def read(fname):
 
 setup(
     name            = "bonsai-code",
-    version         = "0.4.2",
+    version         = "0.4.3",
     author          = "Andre Santos",
     author_email    = "andre.f.santos@inesctec.pt",
     description     = "Static analysis library.",
