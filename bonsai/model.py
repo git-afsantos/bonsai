@@ -80,7 +80,9 @@ class CodeEntity(object):
 
     def _children(self):
         """Yield all direct children of this object."""
-        yield
+        # The default implementation has no children, and thus should return
+        # an empty iterator.
+        return iter(())
 
     def _lookup_parent(self, cls):
         """Lookup a transitive parent object that is an instance
@@ -416,10 +418,13 @@ class CodeClass(CodeEntity):
             superclasses = ', '.join(self.superclasses)
             pretty += '(' + superclasses + ')'
         pretty += ':\n'
-        pretty += '\n\n'.join(
-                c.pretty_str(indent + 2)
-                for c in self.members
-        )
+        if self.members:
+            pretty += '\n\n'.join(
+                    c.pretty_str(indent + 2)
+                    for c in self.members
+            )
+        else:
+            pretty += spaces + '  [declaration]'
         return pretty
 
     def __repr__(self):
