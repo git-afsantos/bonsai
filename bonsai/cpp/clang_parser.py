@@ -745,8 +745,10 @@ class CppTopLevelBuilder(CppEntityBuilder):
             return (cppobj, builders)
         return None
 
+    _CLASSES = (CK.CLASS_DECL, CK.STRUCT_DECL)
+
     def _build_class(self, data):
-        if self.cursor.kind == CK.CLASS_DECL:
+        if self.cursor.kind in CppTopLevelBuilder._CLASSES:
             id = self.cursor.get_usr()
             cppobj = CppClass(self.scope, self.parent, id, self.name)
             builders = []
