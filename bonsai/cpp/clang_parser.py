@@ -759,6 +759,7 @@ class CppTopLevelBuilder(CppEntityBuilder):
                 else:
                     declaration = False
                     builders.append(CppTopLevelBuilder(cursor, cppobj, cppobj))
+            cppobj._definition = cppobj if not declaration else None
             try:
                 data.register(cppobj, declaration=declaration)
             except MultipleDefinitionError as e:
