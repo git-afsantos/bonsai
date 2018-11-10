@@ -43,7 +43,7 @@ class PyAstParser(object):
         with open(file_path) as source:
             content = source.read()
 
-        tree = ASTPreprocessor().visit(ast.parse(content, file_name))
+        tree = ASTPreprocessor().visit(ast.parse(content, file_path))
         bonsai_tree = BuilderVisitor().build(tree)
         self.global_scope._add(bonsai_tree)
         return self.global_scope
