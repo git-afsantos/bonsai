@@ -38,6 +38,8 @@ PyStatementGroup = CodeStatementGroup
 
 PyBlock = CodeBlock
 
+PyGlobalScope = CodeGlobalScope
+
 
 class PyModule(CodeGlobalScope):
     def _add(self, codeobj):

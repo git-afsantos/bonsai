@@ -23,31 +23,56 @@
 ###############################################################################
 
 import ast
+from os import path
 
+from bonsai.py.model import PyGlobalScope
 from bonsai.py.visitor import ASTPreprocessor, BuilderVisitor
+
+###############################################################################
+# AST Parsing
+###############################################################################
+
+
+class PyAstParser(object):
+    def __init__(self):
+        self.global_scope = PyGlobalScope()
+
+    def parse(self, file_path):
+        file_path = path.abspath(file_path)
+
+        with open(file_path) as source:
+            content = source.read()
+
+        tree = ASTPreprocessor().visit(ast.parse(content, file_name))
+        bonsai_tree = BuilderVisitor().build(tree)
+        self.global_scope._add(bonsai_tree)
+        return self.global_scope
+
 
 ###############################################################################
 # Rest
 ###############################################################################
-from os.path import abspath, dirname, join, realpath
 
+if __name__ == '__main__':
+    from os.path import abspath, dirname, join, realpath
 
-file_name = realpath(join(dirname(abspath(__file__)), '..', '..', 'examples',
-                          'py', 'examples.py'))
+    file_name = realpath(join(dirname(abspath(__file__)), '..', '..',
+                              'examples', 'py', 'examples.py'))
 
-with open(file_name) as source:
-    content = source.read()
-    tree = ASTPreprocessor().visit(ast.parse(content, file_name))
-    bonsai_tree = BuilderVisitor().build(tree)
+    with open(file_name) as source:
+        content = source.read()
+        tree = ASTPreprocessor().visit(ast.parse(content, file_name))
+        bonsai_tree = BuilderVisitor().build(tree)
 
-    # print(ast.dump(tree))
-    # print(bonsai_tree.pretty_str())
-    # bonsai_tree.pretty_str()
+        # print(ast.dump(tree))
+        # print(bonsai_tree.pretty_str())
+        # bonsai_tree.pretty_str()
 
-    for child in bonsai_tree.walk_preorder():
-        print('{} ({}): {!r} -- parent: {!r}'.format(
-                type(child).__name__,
-                id(child) % 100000,
-                child,
-                None if child.parent is None else id(child.parent) % 100000))
+        for child in bonsai_tree.walk_preorder():
+            print('{} ({}): {!r} -- parent: {!r}'.format(
+                    type(child).__name__,
+                    id(child) % 100000,
+                    child,
+                    None if child.parent is None else id(child.parent)
+                                                      % 100000))
 
