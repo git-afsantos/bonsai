@@ -38,14 +38,56 @@ PyStatementGroup = CodeStatementGroup
 
 PyBlock = CodeBlock
 
-PyGlobalScope = CodeGlobalScope
 
+class PyGlobalScope(CodeGlobalScope):
+    def __getitem__(self, key):
+        return self.children[key]
 
-class PyModule(CodeGlobalScope):
     def _add(self, codeobj):
-        # Unlike C++, pretty much anything can be defined at global level.
-        # The parent has an assertion that stands in the way
+        # Python global scope is modeled as a container for modules
+        assert isinstance(codeobj, PyModule)
         self.children.append(codeobj)
+
+
+class PyModule(PyEntity):
+    def __init__(self, scope=None, parent=None, name=None):
+        PyEntity.__init__(self, scope, parent)
+        self.name = name
+        self.content = []
+
+    @property
+    def is_directory(self):
+        """Return True if this module represents a module directory."""
+        return all(isinstance(child, PyModule) for child in self._children())
+
+    @property
+    def is_file(self):
+        """Return True if this module represents a python source file."""
+        return not self.is_directory
+
+    def __contains__(self, item):
+        return item in self.content
+
+    def __getitem__(self, key):
+        return self.content[key]
+
+    def __repr__(self):
+        return '{!r}'.format(self.name)
+
+    def _add(self, codeobj):
+        assert (not isinstance(codeobj, PyGlobalScope)
+                and (not self.content
+                     or (self.is_file and not isinstance(codeobj, PyModule))
+                     or (self.is_directory and isinstance(codeobj, PyModule))))
+        self.content.append(codeobj)
+
+    def _children(self):
+        for child in self.content:
+            yield child
+
+    def pretty_str(self, indent=0):
+        return '{}{}:\n\n{}'.format(' ' * indent, pretty_str(self.name),
+                                    pretty_str(self.content, indent))
 
 
 class PyVariable(CodeVariable):

@@ -43,9 +43,14 @@ class PyAstParser(object):
         with open(file_path) as source:
             content = source.read()
 
-        tree = ASTPreprocessor().visit(ast.parse(content, file_path))
-        bonsai_tree = BuilderVisitor().build(tree)
-        self.global_scope._add(bonsai_tree)
+        py_tree = ASTPreprocessor().visit(ast.parse(content, file_path))
+        bonsai_py_module = BuilderVisitor().build(py_tree)
+
+        bonsai_py_module.scope = self.global_scope
+        bonsai_py_module.parent = self.global_scope
+        bonsai_py_module.name = path.basename(path.splitext(file_path)[0])
+
+        self.global_scope._add(bonsai_py_module)
         return self.global_scope
 
 
@@ -58,21 +63,16 @@ if __name__ == '__main__':
 
     file_name = realpath(join(dirname(abspath(__file__)), '..', '..',
                               'examples', 'py', 'examples.py'))
+    bonsai_tree = PyAstParser().parse(file_name)
 
-    with open(file_name) as source:
-        content = source.read()
-        tree = ASTPreprocessor().visit(ast.parse(content, file_name))
-        bonsai_tree = BuilderVisitor().build(tree)
+    # print(ast.dump(tree))
+    # print(bonsai_tree.pretty_str())
+    # bonsai_tree.pretty_str()
 
-        # print(ast.dump(tree))
-        # print(bonsai_tree.pretty_str())
-        # bonsai_tree.pretty_str()
-
-        for child in bonsai_tree.walk_preorder():
-            print('{} ({}): {!r} -- parent: {!r}'.format(
-                    type(child).__name__,
-                    id(child) % 100000,
-                    child,
-                    None if child.parent is None else id(child.parent)
-                                                      % 100000))
+    for child in bonsai_tree.walk_preorder():
+        print('{} ({}): {!r} -- parent: {!r}'.format(
+                type(child).__name__,
+                id(child) % 100000,
+                child,
+                None if child.parent is None else id(child.parent) % 100000))
 
