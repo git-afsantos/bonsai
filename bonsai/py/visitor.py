@@ -99,13 +99,18 @@ variable_contexts = {
 class BuilderVisitor(ast.NodeVisitor):
 
     @classmethod
-    def with_builder(cls, self, visitor_method):
-        def builder_visit(node):
+    def with_builder(cls, visitor_method):
+        def builder_visit(self, node):
             # start to build this node
             bonsai_node, children_scope, props = visitor_method(node)
+            if isinstance(bonsai_node, py_model.PyEntity):
+                bonsai_node.file = self.file_name
+                bonsai_node.line = getattr(node, 'lineno', None)
+                bonsai_node.column = getattr(node, 'col_offset', None)
 
             # build the children recursively
             children_visitor = cls(bonsai_node, children_scope, props)
+            children_visitor.file_name = self.file_name
             children_visitor.generic_visit(node)
 
             # finalize this node
@@ -157,10 +162,13 @@ class BuilderVisitor(ast.NodeVisitor):
         ast.NodeVisitor.__init__(self)
 
         self.builder = PyBonsaiBuilder(parent, scope, props)
+        self.file_name = None
 
         for (name, method) in getmembers(self, isroutine):
             if name.startswith('visit_'):
-                setattr(self, name, self.with_builder(self, method))
+                decorated_method = self.with_builder(method)
+                bound_method = decorated_method.__get__(self, self.__class__)
+                setattr(self, name, bound_method)
 
     @property
     def scope(self):
@@ -170,7 +178,8 @@ class BuilderVisitor(ast.NodeVisitor):
     def parent(self):
         return self.builder.parent
 
-    def build(self, node):
+    def build(self, node, file_name):
+        self.file_name = file_name
         self.visit(node)
         return self.builder.children[0]
 

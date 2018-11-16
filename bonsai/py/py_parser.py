@@ -44,7 +44,7 @@ class PyAstParser(object):
             content = source.read()
 
         py_tree = ASTPreprocessor().visit(ast.parse(content, file_path))
-        bonsai_py_module = BuilderVisitor().build(py_tree)
+        bonsai_py_module = BuilderVisitor().build(py_tree, file_path)
 
         bonsai_py_module.scope = self.global_scope
         bonsai_py_module.parent = self.global_scope
