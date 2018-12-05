@@ -3,3 +3,6 @@ bonsai/**/*.pyc
 build
 dist
 bonsai.egg-info
+
+# IDE
+/.idea
