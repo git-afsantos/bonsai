@@ -29,7 +29,7 @@ import os
 
 import clang.cindex as clang
 
-from ..parser import AnalysisData, MultipleDefinitionError
+from ..parser import AnalysisData, MultipleDefinitionError, CodeAstParser
 from .model import *
 
 
@@ -349,7 +349,7 @@ class CppExpressionBuilder(CppEntityBuilder):
                 self.name   = cursor.spelling
                 return self.build(data)
         return None
-    
+
 
     def _parse_unary_operator(self):
         tokens = list(self.cursor.get_tokens())
@@ -809,7 +809,7 @@ class CppTopLevelBuilder(CppEntityBuilder):
 # AST Parsing
 ###############################################################################
 
-class CppAstParser(object):
+class CppAstParser(CodeAstParser):
     lib_path = None
     lib_file = None
     includes = "/usr/lib/llvm-3.8/lib/clang/3.8.0/include"
@@ -839,8 +839,8 @@ class CppAstParser(object):
     def set_standard_includes(std_includes):
         CppAstParser.includes = std_includes
 
-
-    def __init__(self, workspace = "", user_includes = None):
+    def __init__(self, workspace = "", user_includes = None, logger=None):
+        CodeAstParser.__init__(self, workspace, logger)
     # public:
         self.workspace      = os.path.abspath(workspace) if workspace else ""
         self.global_scope   = CppGlobalScope()
@@ -850,6 +850,7 @@ class CppAstParser(object):
         self._index         = None
         self._db            = CppAstParser.database
 
+    @CodeAstParser.with_logger
     def parse(self, file_path):
         file_path = os.path.abspath(file_path)
         if self._db is None:

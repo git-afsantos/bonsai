@@ -30,6 +30,11 @@
 ###############################################################################
 # Imports
 ###############################################################################
+from __future__ import print_function
+
+import logging
+import sys
+from functools import partial
 
 from .model import (
     CodeExpression, CodeExpressionStatement, CodeVariable, CodeGlobalScope
@@ -219,10 +224,42 @@ class AnalysisData(object):
 
 
 class CodeAstParser(object):
-    def __init__(self, workspace = ""):
+    stdout_handler = logging.StreamHandler(sys.stdout)
+
+    @classmethod
+    def with_logger(cls, parse_fn):
+        def wrapper(*args, **kwargs):
+            self = args[0]
+
+            if self.logger is None or self.logging_fn is None:
+                return parse_fn
+
+            global print
+            old_print = print
+            print = self.logging_fn
+            self.logger.addHandler(cls.stdout_handler)
+
+            ret = parse_fn(*args, **kwargs)
+
+            self.logger.removeHandler(cls.stdout_handler)
+            print = old_print
+
+            return ret
+
+        return wrapper
+
+    def __init__(self, workspace='', logger=None):
         self.workspace      = workspace
         self.global_scope   = CodeGlobalScope()
         self.data           = AnalysisData()
+
+        if logger is not None:
+            log_level = logger.getEffectiveLevel() or logging.INFO
+            self.log = logging.getLogger(logger)
+            self.logging_fn = partial(logger.log, log_level)
+        else:
+            self.log = None
+            self.logging_fn = None
 
     def parse(self, file_path):
         return self.global_scope
