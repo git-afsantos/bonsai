@@ -249,25 +249,33 @@ class AnalysisData(object):
 
 
 class CodeAstParser(object):
-    stdout_handler = logging.StreamHandler(sys.stdout)
+    class LoggerStream(object):
+        def __init__(self, logger, stream, log_level=None):
+            self.logger = logger
+            self.stream = stream
+            self.log_level = (log_level
+                              or self.logger.getEffectiveLevel()
+                              or logging.INFO)
+
+        def write(self, s):
+            self.stream.write(s)
+            self.logger.log(self.log_level, s)
 
     @classmethod
     def with_logger(cls, parse_fn):
         def wrapper(*args, **kwargs):
             self = args[0]
 
-            if self.logger is None or self.logging_fn is None:
-                return parse_fn
+            if not self.has_logger:
+                return parse_fn(*args, **kwargs)
 
-            global print
-            old_print = print
-            print = self.logging_fn
-            self.logger.addHandler(cls.stdout_handler)
+            sys.stdout = self.stdout_logger
+            sys.stderr = self.stderr_logger
 
             ret = parse_fn(*args, **kwargs)
 
-            self.logger.removeHandler(cls.stdout_handler)
-            print = old_print
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
 
             return ret
 
@@ -279,12 +287,18 @@ class CodeAstParser(object):
         self.data           = AnalysisData()
 
         if logger is not None:
-            log_level = logger.getEffectiveLevel() or logging.INFO
-            self.log = logging.getLogger(logger)
-            self.logging_fn = partial(logger.log, log_level)
+            logger = logging.getLogger(logger)
+            self.stdout_logger = self.LoggerStream(logger, sys.__stdout__)
+            self.stderr_logger = self.LoggerStream(logger, sys.__stderr__,
+                                                   logging.ERROR)
         else:
-            self.log = None
-            self.logging_fn = None
+            self.stdout_logger = None
+            self.stderr_logger = None
+
+    @property
+    def has_logger(self):
+        return (self.stdout_logger is not None
+                and self.stderr_logger is not None)
 
     def parse(self, file_path):
         return self.global_scope
