@@ -87,12 +87,12 @@ class ASTPreprocessor(ast.NodeTransformer):
 
 
 variable_contexts = {
-    ast.AugLoad: py_model.PyVariable.Context.REFERENCE,
-    ast.AugStore: py_model.PyVariable.Context.DEFINITION,
-    ast.Del: py_model.PyVariable.Context.DELETION,
-    ast.Load: py_model.PyVariable.Context.REFERENCE,
-    ast.Param: py_model.PyVariable.Context.PARAMETER,
-    ast.Store: py_model.PyVariable.Context.DEFINITION,
+    ast.AugLoad: py_model.PyVariableContext.REFERENCE,
+    ast.AugStore: py_model.PyVariableContext.DEFINITION,
+    ast.Del: py_model.PyVariableContext.DELETION,
+    ast.Load: py_model.PyVariableContext.REFERENCE,
+    ast.Param: py_model.PyVariableContext.PARAMETER,
+    ast.Store: py_model.PyVariableContext.DEFINITION,
 }
 
 

@@ -90,21 +90,22 @@ class PyModule(PyEntity):
                                     pretty_str(self.content, indent))
 
 
+class PyVariableContext(Enum):
+    DEFINITION = 0,
+    DELETION = 1,
+    PARAMETER = 2,
+    REFERENCE = 3
+
+    @property
+    def is_definition(self):
+        return self in (self.DEFINITION, self.PARAMETER)
+
+    @property
+    def is_reference(self):
+        return self in (self.DELETION, self.REFERENCE)
+
+
 class PyVariable(CodeVariable):
-    class Context(Enum):
-        DEFINITION = 0,
-        DELETION = 1,
-        PARAMETER = 2,
-        REFERENCE = 3
-
-        @property
-        def is_definition(self):
-            return self in (self.DEFINITION, self.PARAMETER)
-
-        @property
-        def is_reference(self):
-            return self in (self.DELETION, self.REFERENCE)
-
     def __init__(self, scope, parent, name, context, result=None):
         CodeVariable.__init__(self, scope, parent, 0, name, result)
         self.context = context
@@ -120,7 +121,7 @@ class PyVariable(CodeVariable):
 
     @property
     def is_parameter(self):
-        return (self.context == self.Context.PARAMETER
+        return (self.context == PyVariableContext.PARAMETER
                 or super(CodeVariable, self).is_parameter)
 
     def _children(self):
@@ -272,7 +273,7 @@ class PyAssignment(PyStatement, CodeOperator):
     def _add(self, child):
         assert (isinstance(child, CodeExpression.TYPES)
                 or isinstance(child, CodeVariable)
-                and child.context == PyVariable.Context.DEFINITION)
+                and child.context == PyVariableContext.DEFINITION)
 
         self.arguments = self.arguments + (child,)
 
