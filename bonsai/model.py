@@ -597,6 +597,9 @@ class SomeValue(CodeExpression):
         """Constructor for unknown values."""
         CodeExpression.__init__(self, None, None, result, result)
 
+    def _children(self):
+        """Yield all the children of this object, that is no children."""
+        return iter(())
 
 SomeValue.INTEGER = SomeValue("int")
 SomeValue.FLOATING = SomeValue("float")
