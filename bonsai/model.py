@@ -533,6 +533,10 @@ class CodeGlobalScope(CodeEntity):
                 for codeobj in self.children
         )
 
+    def __repr__(self):
+        """Return a string representation of this object."""
+        return 'CodeGlobalScope({})'.format(self.children)
+
 
 # ----- Expression Entities ---------------------------------------------------
 
