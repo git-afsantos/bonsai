@@ -812,12 +812,12 @@ class CppAstParser(object):
         CppAstParser.includes = std_includes
 
 
-    def __init__(self, workspace = ""):
+    def __init__(self, workspace = "", user_includes = None):
     # public:
         self.workspace      = os.path.abspath(workspace) if workspace else ""
         self.global_scope   = CppGlobalScope()
         self.data           = AnalysisData()
-        self.user_includes  = []
+        self.user_includes  = [] if user_includes is None else user_includes
     # private:
         self._index         = None
         self._db            = CppAstParser.database
