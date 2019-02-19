@@ -23,6 +23,9 @@
 ###############################################################################
 
 import ast
+import sys
+from functools import partial
+from imp import find_module, load_module
 from os import path
 
 from bonsai.py.model import PyGlobalScope
@@ -34,23 +37,54 @@ from bonsai.py.visitor import ASTPreprocessor, BuilderVisitor
 
 
 class PyAstParser(object):
+
+    @classmethod
+    def find_file(cls, pythonpath, module_names):
+        if isinstance(module_names, basestring):
+            module_names = module_names.split('.')
+
+        if not module_names:
+            raise ValueError
+
+        module_name = module_names[0]
+        try:
+            open_file, pathname, description = find_module(module_name, pythonpath)
+        except ImportError:
+            return
+
+        if open_file is None:
+            module = load_module(module_name, open_file, pathname, description)
+            return cls.find_file(module_names[1:],
+                                 pythonpath + module.__path__)
+
+        return open_file, pathname
+
     def __init__(self):
         self.global_scope = PyGlobalScope()
 
-    def parse(self, file_path):
-        file_path = path.abspath(file_path)
+    def parse(self, file_path, source_file=None):
+        if source_file is None:
+            source_file = open(file_path)
 
-        with open(file_path) as source:
-            content = source.read()
+        content = source_file.read()
+        source_file.close()
 
         py_tree = ASTPreprocessor().visit(ast.parse(content, file_path))
-        bonsai_py_module = BuilderVisitor().build(py_tree, file_path)
+        bonsai_py_module, imported_names = (BuilderVisitor()
+                                            .build(py_tree, file_path))
 
         bonsai_py_module.scope = self.global_scope
         bonsai_py_module.parent = self.global_scope
         bonsai_py_module.name = path.basename(path.splitext(file_path)[0])
 
         self.global_scope._add(bonsai_py_module)
+
+        if imported_names:
+            find_file = partial(self.find_file, [path.dirname(file_path)])
+            files = filter(bool, map(find_file, imported_names))
+            for open_file, file_path in files:
+                self.parse(file_path, open_file)
+
         return self.global_scope
 
 
@@ -59,10 +93,16 @@ class PyAstParser(object):
 ###############################################################################
 
 if __name__ == '__main__':
+    import sys
     from os.path import abspath, dirname, join, realpath
 
+    try:
+        source_file = sys.argv[1]
+    except IndexError:
+        source_file = 'examples.py'
+
     file_name = realpath(join(dirname(abspath(__file__)), '..', '..',
-                              'examples', 'py', 'examples.py'))
+                              'examples', 'py', source_file))
     bonsai_tree = PyAstParser().parse(file_name)
 
     # print(ast.dump(tree))

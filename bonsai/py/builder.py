@@ -23,6 +23,7 @@
 ###############################################################################
 
 import ast
+import itertools
 import re
 
 import bonsai.model as bonsai_model
@@ -74,6 +75,12 @@ class PyBonsaiBuilder(object):
 
         return and_node
 
+    @staticmethod
+    def _get_aliased_name(bonsai_node):
+        return (bonsai_node.name
+                if isinstance(bonsai_node, py_model.PyAlias)
+                else bonsai_node)
+
     @classmethod
     def _make_class_name(cls, bonsai_node):
         return re.sub(cls.bonsai_prefix, 'Py', bonsai_node.__class__.__name__)
@@ -105,6 +112,7 @@ class PyBonsaiBuilder(object):
         self.parent = parent
         self.scope = scope or parent
         self.props = props or {}
+        self.imported_names = ()
 
     def __getattr__(self, item):
         try:
@@ -112,8 +120,10 @@ class PyBonsaiBuilder(object):
         except KeyError:
             raise AttributeError()
 
-    def add_child(self, child):
+    def add_child(self, child, imported_names=()):
         self.children.append(child)
+        self.imported_names = itertools.chain(self.imported_names,
+                                              imported_names)
         return self
 
     def finalize(self, bonsai_node):
@@ -217,6 +227,16 @@ class PyBonsaiBuilder(object):
         start, end = end, end + self.entities_count
         for entity in self.children[start:end]:
             bonsai_node._add_entity(entity)
+
+        if bonsai_node.entities:
+            child_module = '.' * bonsai_node.level
+            self.imported_names = (
+                '{}.{}'.format(child_module, entity)
+                for entity in map(self._get_aliased_name, bonsai_node.entities)
+            )
+        else:
+            self.imported_names = map(self._get_aliased_name,
+                                      bonsai_node.modules)
 
         return bonsai_node
 

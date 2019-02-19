@@ -114,10 +114,12 @@ class BuilderVisitor(ast.NodeVisitor):
             children_visitor.generic_visit(node)
 
             # finalize this node
-            bonsai_node = children_visitor.builder.finalize(bonsai_node)
+            children_builder = children_visitor.builder
+            bonsai_node = children_builder.finalize(bonsai_node)
 
             # return to parent
-            self.builder.add_child(bonsai_node)
+            self.builder.add_child(bonsai_node,
+                                   children_builder.imported_names)
 
         return builder_visit
 
@@ -181,7 +183,7 @@ class BuilderVisitor(ast.NodeVisitor):
     def build(self, node, file_name):
         self.file_name = file_name
         self.visit(node)
-        return self.builder.children[0]
+        return self.builder.children[0], self.builder.imported_names
 
     def visit_alias(self, py_node):
         if py_node.asname is None:
