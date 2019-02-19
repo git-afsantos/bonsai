@@ -205,6 +205,9 @@ class BuilderVisitor(ast.NodeVisitor):
     def visit_Assign(self, py_node):
         return self._make_assign(py_node)
 
+    def visit_Assert(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+
     def visit_Attribute(self, py_node):
         return self._make_name(py_node, py_node.attr)
 
@@ -219,6 +222,12 @@ class BuilderVisitor(ast.NodeVisitor):
 
     def visit_BoolOp(self, py_node):
         return self._make_operator(py_node)
+
+    def visit_Break(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+
+    def visit_Continue(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
 
     def visit_Call(self, py_node):
         # (lambda n: n)(9) is not handled yet
@@ -267,10 +276,16 @@ class BuilderVisitor(ast.NodeVisitor):
     def visit_DictComp(self, py_node):
         return self._make_comprehension(py_node)
 
+    def visit_Exec(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+
     def visit_Expr(self, py_node):
         bonsai_node = py_model.PyExpressionStatement(self.scope, self.parent,
                                                      None)
         return bonsai_node, self.scope, None
+
+    def visit_For(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
 
     def visit_IfExp(self, py_node):
         return self._make_operator(py_node)
@@ -287,8 +302,14 @@ class BuilderVisitor(ast.NodeVisitor):
         }
         return bonsai_node, bonsai_node, props
 
+    def visit_Global(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+
     def visit_GeneratorExp(self, py_node):
         return self._make_comprehension(py_node)
+
+    def visit_If(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
 
     def visit_Import(self, py_node):
         bonsai_node = py_model.PyImport(self.scope, self.parent, level=0)
@@ -307,6 +328,9 @@ class BuilderVisitor(ast.NodeVisitor):
             'entities_count': len(py_node.names),
         }
         return bonsai_node, self.scope, props
+
+    def visit_Lambda(self, py_node):
+        return py_model.PyDummyExpr(self.scope, self.parent), self.scope, None
 
     def visit_List(self, py_node):
         return self._make_composite_literal(py_node)
@@ -328,6 +352,15 @@ class BuilderVisitor(ast.NodeVisitor):
     def visit_Num(self, py_node):
         return py_node.n, self.scope, None
 
+    def visit_Pass(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+
+    def visit_Raise(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+
+    def visit_Return(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+
     def visit_Set(self, py_node):
         return self._make_composite_literal(py_node)
 
@@ -337,8 +370,26 @@ class BuilderVisitor(ast.NodeVisitor):
     def visit_Str(self, py_node):
         return py_node.s, self.scope, None
 
+    def visit_Subscript(self, py_node):
+        return py_model.PyDummyExpr(self.scope, self.parent), self.scope, None
+
+    def visit_TryFinally(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+
+    def visit_TryExcept(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+
     def visit_Tuple(self, py_node):
         return self._make_composite_literal(py_node)
 
     def visit_UnaryOp(self, py_node):
         return self._make_operator(py_node)
+
+    def visit_While(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+
+    def visit_With(self, py_node):
+        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+
+    def visit_Yield(self, py_node):
+        return py_model.PyDummyExpr(self.scope, self.parent), self.scope, None

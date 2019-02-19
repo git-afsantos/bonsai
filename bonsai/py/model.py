@@ -33,9 +33,8 @@ from bonsai.py import parentheses
 # ----- Common Entities -------------------------------------------------------
 
 PyEntity = CodeEntity
-
+PyStatement = CodeStatement
 PyStatementGroup = CodeStatementGroup
-
 PyBlock = CodeBlock
 
 
@@ -404,6 +403,19 @@ PyExpressionStatement = CodeExpressionStatement
 PyReference = CodeReference
 
 PyNull = CodeNull
+
+
+class PyDummyExpr(PyExpression):
+    def __init__(self, scope, parent):
+        PyExpression.__init__(self, scope, parent, None, None)
+        self._subtree = []
+
+    def _add(self, child):
+        self._subtree.append(child)
+
+    def _children(self):
+        for child in self._subtree:
+            yield child
 
 
 # class PyLambda(PyExpression):
