@@ -229,9 +229,10 @@ class PyBonsaiBuilder(object):
             bonsai_node._add_entity(entity)
 
         if bonsai_node.entities:
-            child_module = '.' * bonsai_node.level
+            parent_path = '.' * bonsai_node.level
+            module_name = bonsai_node.modules[0]
             self.imported_names = (
-                '{}.{}'.format(child_module, entity)
+                '{}{}.{}'.format(parent_path, module_name, entity)
                 for entity in map(self._get_aliased_name, bonsai_node.entities)
             )
         else:
