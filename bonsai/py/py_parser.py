@@ -179,12 +179,16 @@ class FileFinder(object):
 
             self.top_level[top_level_name] = full_name
 
-
         return node
 
 
 class PyAstParser(object):
     def _parse_file(self, file_path):
+        try:
+            return self.cache[file_path]
+        except KeyError:
+            pass
+
         with open(file_path) as source_file:
             content = source_file.read()
         print(file_path)
@@ -196,11 +200,15 @@ class PyAstParser(object):
         node.parent = self.global_scope
         node.name = path.basename(path.splitext(file_path)[0])
 
+        self.cache[file_path] = (node, imported_names)
+
         return node, imported_names
 
     def __init__(self, pythonpath=None, workspace=None):
         self.global_scope = PyGlobalScope()
         self.file_finder = FileFinder(self, pythonpath, workspace)
+
+        self.cache = {}
 
     def parse(self, file_path):
         node, imported_names = self._parse_file(file_path)

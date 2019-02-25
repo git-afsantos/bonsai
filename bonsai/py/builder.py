@@ -139,7 +139,6 @@ class PyBonsaiBuilder(object):
 
         start, end = end, end + self.members_count
         for member in self.children[start:end]:
-            print(type(member))
             if isinstance(member, py_model.PyAssignment):
                 member = member.arguments[0]
                 member.scope = bonsai_node
