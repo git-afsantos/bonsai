@@ -26,7 +26,8 @@ import ast
 import sys
 from copy import copy
 from functools import partial
-from itertools import takewhile, dropwhile
+from glob import glob
+from itertools import takewhile
 from os import path
 
 from bonsai.py.model import PyGlobalScope
@@ -38,34 +39,46 @@ from bonsai.py.visitor import ASTPreprocessor, BuilderVisitor
 
 
 class PyAstParser(object):
-    @classmethod
-    def find_file_in_dir(cls, module_name, directory):
-        if not module_name:
-            raise ValueError(module_name)
+    def _parse_file(self, file_path):
+        with open(file_path) as source_file:
+            content = source_file.read()
 
-        module_path = path.join(directory, module_name.pop(0))
+        py_tree = ASTPreprocessor().visit(ast.parse(content, file_path))
+        node, imported_names = BuilderVisitor().build(py_tree, file_path)
 
-        if path.isdir(module_path):
-            return (module_path
-                    if not module_name
-                    else cls.find_file_in_dir(module_name, module_path))
+        node.scope = self.global_scope
+        node.parent = self.global_scope
+        node.name = path.basename(path.splitext(file_path)[0])
 
-        if path.isfile(module_path + '.py'):
-            return module_path
-
-        raise IOError('{} not found'.format(module_path))
+        return node, imported_names
 
     def __init__(self, pythonpath=None, workspace=None):
         self.global_scope = PyGlobalScope()
         self.pythonpath = (pythonpath or []) + sys.path
         self.workspace = workspace
 
+        self.top_level = {}
+
+    def add_top_level(self, init_file, module):
+        imported_names = self._parse_file(init_file)[1]
+        exposed_names = (
+            name[1:]
+            for name in imported_names
+            if name[0] == '.' and name[1] != '.'
+        )
+        for name in exposed_names:
+            _, _, entity = name.rpartition('.')
+            full_name = '{}.{}'.format(module, name)
+            top_level_name = '{}.{}'.format(module, entity)
+            self.top_level[top_level_name] = full_name
+
     def find_file_by_import(self, importing_path, imported_module):
         leading_dots = ''.join(takewhile(lambda c: c == '.',
                                          iter(imported_module)))
         parent_path = path.join(leading_dots[:2],
                                 *('..' for _ in leading_dots[2:]))
-        entity_name = imported_module[len(leading_dots):].split('.')
+        entity_name = imported_module[len(leading_dots):]
+        entity_name = self.top_level.get(entity_name, entity_name).split('.')
 
         if parent_path:
             file_dir = path.dirname(importing_path)
@@ -77,6 +90,8 @@ class PyAstParser(object):
             try:
                 return self.find_file_in_dir(copy(entity_name), directory)
             except IOError:
+                entity_name = (self.top_level.get(entity_name, entity_name)
+                               .split('.'))
                 continue
 
         if imported_module in sys.builtin_module_names:
@@ -84,23 +99,38 @@ class PyAstParser(object):
 
         raise IOError('{} not found'.format(imported_module))
 
+    def find_file_in_dir(self, module_name, directory):
+        module_path = directory
+        module_path_prefix_length = len(directory) + 1
+
+        while module_name:
+            module_path = path.join(module_path, module_name.pop(0))
+
+            if path.isdir(module_path):
+                init_file = path.join(module_path, '__init__.py')
+                if path.isfile(init_file):
+                    current_module = (module_path[module_path_prefix_length:]
+                                      .replace('/', '.'))
+                    self.add_top_level(init_file, current_module)
+
+                    module_name = (self.top_level.get(module_name, module_name)
+                                   .split('.'))
+                    return self.find_file_in_dir(module_name, directory)
+
+                if not module_name:
+                    return module_path
+
+            if path.isfile(module_path + '.py'):
+                return module_path
+
+        raise IOError('{} not found'.format(module_path))
+
     def is_in_workspace(self, file_path):
         return file_path and file_path.startswith(self.workspace)
 
     def parse(self, file_path):
         print(file_path)
-        with open(file_path) as source_file:
-            content = source_file.read()
-
-        py_tree = ASTPreprocessor().visit(ast.parse(content, file_path))
-        bonsai_py_module, imported_names = (BuilderVisitor()
-                                            .build(py_tree, file_path))
-
-        bonsai_py_module.scope = self.global_scope
-        bonsai_py_module.parent = self.global_scope
-        bonsai_py_module.name = path.basename(path.splitext(file_path)[0])
-
-        self.global_scope._add(bonsai_py_module)
+        imported_names = self._parse_file(file_path)[1]
 
         if imported_names:
             find_file = partial(self.find_file_by_import, file_path)
