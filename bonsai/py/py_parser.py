@@ -170,11 +170,6 @@ class FileFinder(object):
             _, _, entity = name.rpartition('.')
             full_name = '{}.{}'.format(module, name)
             top_level_name = '{}.{}'.format(module, entity)
-
-            # print('full_name: ' + full_name)
-            # print('top_level_name: ' + top_level_name)
-            # print('entity: ' + entity)
-
             self.top_level[top_level_name] = full_name
 
         return node
@@ -208,6 +203,12 @@ class PyAstParser(object):
         self.cache = {}
 
     def parse(self, file_path):
+        if path.isdir(file_path):
+            file_path = path.join(file_path, '__init__.py')
+
+        if not path.isfile(file_path):
+            return self.global_scope
+
         node, imported_names = self._parse_file(file_path)
         self.global_scope._add(node)
 
