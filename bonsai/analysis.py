@@ -26,7 +26,7 @@
 from .model import (
     CodeEntity, CodeBlock, CodeControlFlow, CodeExpression, CodeFunction,
     CodeFunctionCall, CodeOperator, CodeReference, CodeVariable, CodeLoop,
-    CodeDefaultArgument
+    CodeDefaultArgument, CodeClass
 )
 
 
@@ -35,6 +35,8 @@ from .model import (
 ###############################################################################
 
 class CodeQuery(object):
+    DEFINITIONS = (CodeClass, CodeFunction, CodeVariable)
+
     def __init__(self, codeobj):
         assert isinstance(codeobj, CodeEntity)
         self.root = codeobj
@@ -68,13 +70,13 @@ class CodeQuery(object):
 
     @property
     def definitions(self):
-        self.cls = CodeVariable
+        self.cls = self.DEFINITIONS
         self.recursive = False
         return self
 
     @property
     def all_definitions(self):
-        self.cls = CodeVariable
+        self.cls = self.DEFINITIONS
         self.recursive = True
         return self
 

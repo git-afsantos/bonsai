@@ -78,8 +78,9 @@ class FileFinder(object):
                 node = self.parse_init(module_path,
                                        module_path[prefix_length:])
                 try:
-                    module_name = self.top_level[module_name]
-                    return self.find_file_in_dir(module_name, directory)
+                    mapped_name = self.top_level[module_name]
+                    if module_name != mapped_name:
+                        return self.find_file_in_dir(mapped_name, directory)
                 except KeyError:
                     pass
 
@@ -95,22 +96,30 @@ class FileFinder(object):
 
         raise IOError('{} not found'.format(module_path))
 
-    def find_star(self, node):
+    def find_star(self, node, module_name):
         if isinstance(node, basestring):
             node = self.parser._parse_file(node)[0]
 
-        print(node)
+        top_level_definitions = (CodeQuery(node)
+                                 .definitions
+                                 .get())
+        try:
+            all_star = next(
+                    definition
+                    for definition in top_level_definitions
+                    if definition.name == '__all__'
+            )
+            return (
+                '{}.{}'.format(module_name, getattr(item, 'value', item))
+                for item in all_star.value
+            )
+        except StopIteration:
+            pass
 
-        # print((CodeQuery(node)
-        #     .all_definitions
-        #     .where_name('__all__')
-        #     .get()))
-        print(node.pretty_str())
-
-        top_level_names = (CodeQuery(node)
-                           .definitions
-                           .get())
-
+        top_level_names = (
+            '{}.{}'.format(module_name, entity.name)
+            for entity in top_level_definitions
+        )
         return top_level_names
 
     def is_in_workspace(self, file_path):
@@ -124,7 +133,9 @@ class FileFinder(object):
         entity_name = imported_module[len(leading_dots):]
 
         if parent_path:
-            file_dir = path.dirname(importing_path)
+            file_dir = (path.dirname(importing_path)
+                        if path.isfile(importing_path)
+                        else importing_path)
             pythonpath = [path.normpath(path.join(file_dir, parent_path))]
         else:
             pythonpath = self.pythonpath
@@ -142,23 +153,32 @@ class FileFinder(object):
             for name in imported_names
             if name[0] == '.' and name[1] != '.'
         ]
-        for name in exposed_names:
-            if name.endswith('*'):
-                node = self.find_file_by_import(init_file, name)
-                print(node)
-                self.find_star(node)
-        # stars = itertools.chain.from_iterable(
-        #     self.find_star(name)
-        #     for name in exposed_names
-        #     if name.endswith('*')
-        # )
+
+        not_stars = (
+            name[1:]
+            for name in exposed_names
+            if not name.endswith('*')
+        )
+        stars = itertools.chain.from_iterable(
+            self.find_star(self.find_file_by_import(full_path, name[:-2]),
+                           name[:-2].rpartition('.')[-1])
+            for name in exposed_names
+            if name.endswith('*')
+        )
+        exposed_names = itertools.chain(not_stars, stars)
 
         module = module_path.replace('/', '.')
         for name in exposed_names:
-            _, _, entity = name[1:].rpartition('.')
-            full_name = '{}.{}'.format(module, name[1:])
+            _, _, entity = name.rpartition('.')
+            full_name = '{}.{}'.format(module, name)
             top_level_name = '{}.{}'.format(module, entity)
+
+            # print('full_name: ' + full_name)
+            # print('top_level_name: ' + top_level_name)
+            # print('entity: ' + entity)
+
             self.top_level[top_level_name] = full_name
+
 
         return node
 
