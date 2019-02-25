@@ -23,13 +23,13 @@
 ###############################################################################
 
 import ast
+import itertools
 import sys
-from copy import copy
 from functools import partial
-from glob import glob
 from itertools import takewhile
 from os import path
 
+from bonsai.analysis import CodeQuery
 from bonsai.py.model import PyGlobalScope
 from bonsai.py.visitor import ASTPreprocessor, BuilderVisitor
 
@@ -38,53 +38,22 @@ from bonsai.py.visitor import ASTPreprocessor, BuilderVisitor
 ###############################################################################
 
 
-class PyAstParser(object):
-    def _parse_file(self, file_path):
-        with open(file_path) as source_file:
-            content = source_file.read()
-
-        py_tree = ASTPreprocessor().visit(ast.parse(content, file_path))
-        node, imported_names = BuilderVisitor().build(py_tree, file_path)
-
-        node.scope = self.global_scope
-        node.parent = self.global_scope
-        node.name = path.basename(path.splitext(file_path)[0])
-
-        return node, imported_names
-
-    def __init__(self, pythonpath=None, workspace=None):
-        self.global_scope = PyGlobalScope()
+class FileFinder(object):
+    def __init__(self, parser, pythonpath=None, workspace=None):
+        self.parser = parser
         self.pythonpath = (pythonpath or []) + sys.path
         self.workspace = workspace
 
         self.top_level = {}
 
-    def add_top_level(self, init_file, module):
-        imported_names = self._parse_file(init_file)[1]
-        exposed_names = (
-            name[1:]
-            for name in imported_names
-            if name[0] == '.' and name[1] != '.'
-        )
-        for name in exposed_names:
-            _, _, entity = name.rpartition('.')
-            full_name = '{}.{}'.format(module, name)
-            top_level_name = '{}.{}'.format(module, entity)
-            self.top_level[top_level_name] = full_name
+    def find_files(self, importing_path, imported_names):
+        find_file = partial(self.find_file_by_import, importing_path)
+        file_paths = map(find_file, imported_names)
+        return filter(self.is_in_workspace, file_paths)
 
     def find_file_by_import(self, importing_path, imported_module):
-        leading_dots = ''.join(takewhile(lambda c: c == '.',
-                                         iter(imported_module)))
-        parent_path = path.join(leading_dots[:2],
-                                *('..' for _ in leading_dots[2:]))
-        entity_name = imported_module[len(leading_dots):]
-
-        if parent_path:
-            file_dir = path.dirname(importing_path)
-            pythonpath = [path.normpath(path.join(file_dir, parent_path))]
-        else:
-            pythonpath = self.pythonpath
-
+        entity_name, pythonpath = self.make_absolute(importing_path,
+                                                     imported_module)
         for directory in pythonpath:
             try:
                 return self.find_file_in_dir(entity_name, directory)
@@ -100,46 +69,128 @@ class PyAstParser(object):
         module_name = self.top_level.get(module_name, module_name)
         module_splits = module_name.split('.')
         module_path = directory
-        module_path_prefix_length = len(directory) + 1
+        prefix_length = len(directory) + 1
 
         while module_splits:
             module_path = path.join(module_path, module_splits.pop(0))
 
             if path.isdir(module_path):
-                init_file = path.join(module_path, '__init__.py')
-                if path.isfile(init_file):
-                    current_module = (module_path[module_path_prefix_length:]
-                                      .replace('/', '.'))
-                    self.add_top_level(init_file, current_module)
-
-                    try:
-                        module_name = self.top_level[module_name]
-                        return self.find_file_in_dir(module_name, directory)
-                    except KeyError:
-                        pass
+                node = self.parse_init(module_path,
+                                       module_path[prefix_length:])
+                try:
+                    module_name = self.top_level[module_name]
+                    return self.find_file_in_dir(module_name, directory)
+                except KeyError:
+                    pass
 
                 if not module_splits:
                     return module_path
 
-            if path.isfile(module_path + '.py'):
-                return module_path
+                if module_splits == ['*']:
+                    self.find_star(node)
+
+            file_path = module_path + '.py'
+            if path.isfile(file_path):
+                return file_path
 
         raise IOError('{} not found'.format(module_path))
+
+    def find_star(self, node):
+        if isinstance(node, basestring):
+            node = self.parser._parse_file(node)[0]
+
+        print(node)
+
+        # print((CodeQuery(node)
+        #     .all_definitions
+        #     .where_name('__all__')
+        #     .get()))
+        print(node.pretty_str())
+
+        top_level_names = (CodeQuery(node)
+                           .definitions
+                           .get())
+
+        return top_level_names
 
     def is_in_workspace(self, file_path):
         return file_path and file_path.startswith(self.workspace)
 
-    def parse(self, file_path):
-        print(file_path)
-        imported_names = self._parse_file(file_path)[1]
+    def make_absolute(self, importing_path, imported_module):
+        leading_dots = ''.join(takewhile(lambda c: c == '.',
+                                         iter(imported_module)))
+        parent_path = path.join(leading_dots[:2],
+                                *('..' for _ in leading_dots[2:]))
+        entity_name = imported_module[len(leading_dots):]
 
-        if imported_names:
-            find_file = partial(self.find_file_by_import, file_path)
-            file_paths = map(find_file, imported_names)
-            for file_path in filter(self.is_in_workspace, file_paths):
-                self.parse(file_path)
+        if parent_path:
+            file_dir = path.dirname(importing_path)
+            pythonpath = [path.normpath(path.join(file_dir, parent_path))]
+        else:
+            pythonpath = self.pythonpath
+
+        return entity_name, pythonpath
+
+    def parse_init(self, full_path, module_path):
+        init_file = path.join(full_path, '__init__.py')
+        if not path.isfile(init_file):
+            return
+
+        node, imported_names = self.parser._parse_file(init_file)
+        exposed_names = [
+            name
+            for name in imported_names
+            if name[0] == '.' and name[1] != '.'
+        ]
+        for name in exposed_names:
+            if name.endswith('*'):
+                node = self.find_file_by_import(init_file, name)
+                print(node)
+                self.find_star(node)
+        # stars = itertools.chain.from_iterable(
+        #     self.find_star(name)
+        #     for name in exposed_names
+        #     if name.endswith('*')
+        # )
+
+        module = module_path.replace('/', '.')
+        for name in exposed_names:
+            _, _, entity = name[1:].rpartition('.')
+            full_name = '{}.{}'.format(module, name[1:])
+            top_level_name = '{}.{}'.format(module, entity)
+            self.top_level[top_level_name] = full_name
+
+        return node
+
+
+class PyAstParser(object):
+    def _parse_file(self, file_path):
+        with open(file_path) as source_file:
+            content = source_file.read()
+        print(file_path)
+
+        py_tree = ASTPreprocessor().visit(ast.parse(content, file_path))
+        node, imported_names = BuilderVisitor().build(py_tree, file_path)
+
+        node.scope = self.global_scope
+        node.parent = self.global_scope
+        node.name = path.basename(path.splitext(file_path)[0])
+
+        return node, imported_names
+
+    def __init__(self, pythonpath=None, workspace=None):
+        self.global_scope = PyGlobalScope()
+        self.file_finder = FileFinder(self, pythonpath, workspace)
+
+    def parse(self, file_path):
+        node, imported_names = self._parse_file(file_path)
+        self.global_scope._add(node)
+
+        for source in self.file_finder.find_files(file_path, imported_names):
+            self.parse(source)
 
         return self.global_scope
+
 
 ###############################################################################
 # Rest

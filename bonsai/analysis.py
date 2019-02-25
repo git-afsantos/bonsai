@@ -66,6 +66,18 @@ class CodeQuery(object):
         self.recursive = True
         return self
 
+    @property
+    def definitions(self):
+        self.cls = CodeVariable
+        self.recursive = False
+        return self
+
+    @property
+    def all_definitions(self):
+        self.cls = CodeVariable
+        self.recursive = True
+        return self
+
     def where_name(self, name):
         self.attributes['name'] = name
         return self
