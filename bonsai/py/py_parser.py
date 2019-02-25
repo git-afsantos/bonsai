@@ -78,7 +78,6 @@ class PyAstParser(object):
         parent_path = path.join(leading_dots[:2],
                                 *('..' for _ in leading_dots[2:]))
         entity_name = imported_module[len(leading_dots):]
-        entity_name = self.top_level.get(entity_name, entity_name).split('.')
 
         if parent_path:
             file_dir = path.dirname(importing_path)
@@ -88,11 +87,9 @@ class PyAstParser(object):
 
         for directory in pythonpath:
             try:
-                return self.find_file_in_dir(copy(entity_name), directory)
+                return self.find_file_in_dir(entity_name, directory)
             except IOError:
-                entity_name = (self.top_level.get(entity_name, entity_name)
-                               .split('.'))
-                continue
+                pass
 
         if imported_module in sys.builtin_module_names:
             return
@@ -100,11 +97,13 @@ class PyAstParser(object):
         raise IOError('{} not found'.format(imported_module))
 
     def find_file_in_dir(self, module_name, directory):
+        module_name = self.top_level.get(module_name, module_name)
+        module_splits = module_name.split('.')
         module_path = directory
         module_path_prefix_length = len(directory) + 1
 
-        while module_name:
-            module_path = path.join(module_path, module_name.pop(0))
+        while module_splits:
+            module_path = path.join(module_path, module_splits.pop(0))
 
             if path.isdir(module_path):
                 init_file = path.join(module_path, '__init__.py')
@@ -113,11 +112,13 @@ class PyAstParser(object):
                                       .replace('/', '.'))
                     self.add_top_level(init_file, current_module)
 
-                    module_name = (self.top_level.get(module_name, module_name)
-                                   .split('.'))
-                    return self.find_file_in_dir(module_name, directory)
+                    try:
+                        module_name = self.top_level[module_name]
+                        return self.find_file_in_dir(module_name, directory)
+                    except KeyError:
+                        pass
 
-                if not module_name:
+                if not module_splits:
                     return module_path
 
             if path.isfile(module_path + '.py'):
@@ -139,7 +140,6 @@ class PyAstParser(object):
                 self.parse(file_path)
 
         return self.global_scope
-
 
 ###############################################################################
 # Rest
