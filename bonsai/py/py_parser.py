@@ -39,11 +39,11 @@ from bonsai.py.visitor import ASTPreprocessor, BuilderVisitor
 
 
 class FileFinder(object):
-    def __init__(self, parser, pythonpath=None, workspace=None):
+    def __init__(self, parser, pythonpath=None, workspace=''):
         self.parser = parser
-        self.pythonpath = (pythonpath or []) + sys.path
         self.workspace = workspace
-
+        self.pythonpath = filter(self.is_in_workspace,
+                                 (pythonpath or []) + sys.path)
         self.top_level = {}
 
     def find_files(self, importing_path, imported_names):
@@ -62,8 +62,6 @@ class FileFinder(object):
 
         if imported_module in sys.builtin_module_names:
             return
-
-        raise IOError('{} not found'.format(imported_module))
 
     def find_file_in_dir(self, module_name, directory):
         module_name = self.top_level.get(module_name, module_name)
@@ -191,7 +189,6 @@ class PyAstParser(object):
 
         with open(file_path) as source_file:
             content = source_file.read()
-        print(file_path)
 
         py_tree = ASTPreprocessor().visit(ast.parse(content, file_path))
         node, imported_names = BuilderVisitor().build(py_tree, file_path)
@@ -204,7 +201,7 @@ class PyAstParser(object):
 
         return node, imported_names
 
-    def __init__(self, pythonpath=None, workspace=None):
+    def __init__(self, pythonpath=None, workspace=''):
         self.global_scope = PyGlobalScope()
         self.file_finder = FileFinder(self, pythonpath, workspace)
 
