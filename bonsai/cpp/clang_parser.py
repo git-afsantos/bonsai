@@ -887,7 +887,8 @@ class CppTopLevelBuilder(CppEntityBuilder):
 class CppAstParser(CodeAstParser):
     lib_path = None
     lib_file = None
-    includes = "/usr/lib/llvm-3.8/lib/clang/3.8.0/include"    database = None
+    includes = "/usr/lib/llvm-3.8/lib/clang/3.8.0/include"
+    database = None
 
     # system required / user optional
     @staticmethod
