@@ -205,3 +205,27 @@ def my_function(a, b=x, d=7, *c, **kk):
 class MyClass(object):
     def __init__(self):
         self.a = 5
+
+# If statement without else
+if a == 5:
+    b = 4
+
+# If statement with else
+if a in (5, 3):
+    c = 'a'
+else:
+    b = False
+
+# If statement with elif
+if b < 3:
+    d = ['a', 'b', 'c']
+elif 2 < b < 4:
+    b = 'local'
+
+# If statement with elif and else
+if b < 3:
+    d = ['a', 'b', 'c']
+elif 2 < b < 4:
+    b = 'local'
+else:
+    b = 55

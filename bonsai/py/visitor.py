@@ -287,9 +287,6 @@ class BuilderVisitor(ast.NodeVisitor):
     def visit_For(self, py_node):
         return py_model.PyBlock(self.scope, self.parent), self.scope, None
 
-    def visit_IfExp(self, py_node):
-        return self._make_operator(py_node)
-
     def visit_keyword(self, py_node):
         bonsai_node = py_model.PyKeyValue(self.scope, self.parent, py_node.arg)
         return bonsai_node, self.scope, None
@@ -309,7 +306,16 @@ class BuilderVisitor(ast.NodeVisitor):
         return self._make_comprehension(py_node)
 
     def visit_If(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        bonsai_node = py_model.PyConditional(self.scope, self.parent)
+
+        props = {
+            'then_count': len(py_node.body),
+            'else_count': len(py_node.orelse)
+        }
+        return bonsai_node, self.scope, props
+
+    def visit_IfExp(self, py_node):
+        return self._make_operator(py_node)
 
     def visit_Import(self, py_node):
         bonsai_node = py_model.PyImport(self.scope, self.parent, level=0)

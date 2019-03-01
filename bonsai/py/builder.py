@@ -183,6 +183,19 @@ class PyBonsaiBuilder(object):
         bonsai_node.filters = tuple(self.children[2:])
         return bonsai_node
 
+    def finalize_PyConditional(self, bonsai_node):
+        bonsai_node._set_condition(self.children[0])
+
+        start, end = 1, 1 + self.then_count
+        for stmt in self.children[start:end]:
+            bonsai_node._set_body(stmt)
+
+        start, end = end, end + self.else_count
+        for stmt in self.children[start:end]:
+            bonsai_node._add_default_branch(stmt)
+
+        return bonsai_node
+
     def finalize_PyDelete(self, bonsai_node):
         return self._add_all_children(bonsai_node)
 

@@ -33,7 +33,6 @@ from bonsai.py import parentheses
 # ----- Common Entities -------------------------------------------------------
 
 PyEntity = CodeEntity
-PyStatement = CodeStatement
 PyStatementGroup = CodeStatementGroup
 PyBlock = CodeBlock
 
@@ -234,9 +233,6 @@ class PyClass(CodeClass):
 
 # ----- Statement Entities ----------------------------------------------------
 
-PyJumpStatement = CodeJumpStatement
-
-
 class PyStatement(CodeStatement):
     # No bare aliasing, need to override is_assignment
     def __init__(self, scope, parent):
@@ -244,6 +240,14 @@ class PyStatement(CodeStatement):
 
     def is_assignment(self):
         return isinstance(self, PyAssignment)
+
+
+# Needs to be redefined in order to inherit from PyStatement. Could be just an
+# alias for CodeConditional otherwise
+class PyConditional(CodeConditional, PyStatement):
+    def __init__(self, *args, **kwargs):
+        CodeConditional.__init__(self, *args, **kwargs)
+        PyStatement.__init__(self, *args, **kwargs)
 
 
 class PyAssignment(PyStatement, CodeOperator):
