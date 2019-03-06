@@ -25,6 +25,7 @@
 import ast
 import itertools
 import re
+from functools import partial
 
 import bonsai.model as bonsai_model
 import bonsai.py.model as py_model
@@ -106,6 +107,14 @@ class PyBonsaiBuilder(object):
 
         return key_val
 
+    def _make_statement(self, parent, stmt):
+        if isinstance(stmt, bonsai_model.CodeStatement):
+            return stmt
+
+        expr = py_model.PyExpressionStatement(self.scope, parent, stmt)
+        stmt.parent = expr
+        return expr
+
     def __init__(self, parent=None, scope=None, props=None):
         self.children = []
 
@@ -186,12 +195,15 @@ class PyBonsaiBuilder(object):
     def finalize_PyConditional(self, bonsai_node):
         bonsai_node._set_condition(self.children[0])
 
+        make_stmt = partial(self._make_statement, bonsai_node)
+        children = map(make_stmt, self.children[1:])
+
         start, end = 1, 1 + self.then_count
-        for stmt in self.children[start:end]:
+        for stmt in children[start:end]:
             bonsai_node._set_body(stmt)
 
         start, end = end, end + self.else_count
-        for stmt in self.children[start:end]:
+        for stmt in children[start:end]:
             bonsai_node._add_default_branch(stmt)
 
         return bonsai_node
