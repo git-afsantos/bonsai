@@ -790,7 +790,7 @@ class CodeReference(CodeExpression):
 
     def _set_field(self, codeobj):
         """Set the object that contains the attribute this is a reference of."""
-        assert isinstance(codeobj, CodeExpression)
+        assert isinstance(codeobj, CodeExpression.TYPES)
         self.field_of = codeobj
 
     def _children(self):
@@ -954,7 +954,7 @@ class CodeFunctionCall(CodeExpression):
 
     def _set_method(self, codeobj):
         """Set the object on which a method is called."""
-        assert isinstance(codeobj, CodeExpression)
+        assert isinstance(codeobj, CodeExpression.TYPES)
         self.method_of = codeobj
 
     def _children(self):
