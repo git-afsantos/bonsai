@@ -230,6 +230,10 @@ class PyClass(CodeClass):
     def is_definition(self):
         return True
 
+    def _add(self, codeobj):
+        self.members.append(codeobj)
+        codeobj.member_of = self
+
 
 # ----- Statement Entities ----------------------------------------------------
 
