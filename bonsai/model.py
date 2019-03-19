@@ -795,7 +795,7 @@ class CodeReference(CodeExpression):
 
     def _children(self):
         """Yield all direct children of this object."""
-        if self.field_of:
+        if isinstance(self.field_of, CodeEntity):
             yield self.field_of
 
     def pretty_str(self, indent=0):
@@ -959,7 +959,7 @@ class CodeFunctionCall(CodeExpression):
 
     def _children(self):
         """Yield all direct children of this object."""
-        if self.method_of:
+        if isinstance(self.method_of, CodeEntity):
             yield self.method_of
         for codeobj in self.arguments:
             if isinstance(codeobj, CodeExpression):
