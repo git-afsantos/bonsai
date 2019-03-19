@@ -336,7 +336,10 @@ class BuilderVisitor(ast.NodeVisitor):
         return bonsai_node, self.scope, props
 
     def visit_Lambda(self, py_node):
-        return py_model.PyDummyExpr(self.scope, self.parent), self.scope, None
+        props = {
+            'parent_scope': self.scope
+        }
+        return py_model.PyDummyExpr(self.scope, self.parent), self.scope, props
 
     def visit_List(self, py_node):
         return self._make_composite_literal(py_node)
