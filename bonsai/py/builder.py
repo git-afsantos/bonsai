@@ -222,10 +222,12 @@ class PyBonsaiBuilder(object):
         return bonsai_node
 
     def finalize_PyFunctionCall(self, bonsai_node):
-        function_name = self.children[0]
-        bonsai_node.name = function_name.name
-        if function_name.field_of is not None:
-            bonsai_node._set_method(function_name.field_of)
+        function = self.children[0]
+        bonsai_node.name = (function.name
+                            if isinstance(function, bonsai_model.CodeReference)
+                            else '__call__')
+        if getattr(function, 'field_of', None):
+            bonsai_node._set_method(function.field_of)
 
         start, end = 1, 1 + self.args_count
         for arg in self.children[start:end]:
