@@ -310,3 +310,9 @@ class PyBonsaiBuilder(object):
             bonsai_node.attribute_of = self.children[0]
 
         return bonsai_node
+
+    def finalize_PyDummyBlock(self, bonsai_node):
+        return self._add_all_children(bonsai_node)
+
+    def finalize_PyDummyExpr(self, bonsai_node):
+        return self._add_all_children(bonsai_node)

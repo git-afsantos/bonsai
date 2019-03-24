@@ -206,7 +206,7 @@ class BuilderVisitor(ast.NodeVisitor):
         return self._make_assign(py_node)
 
     def visit_Assert(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        return py_model.PyDummyBlock(self.scope, self.parent), self.scope, None
 
     def visit_Attribute(self, py_node):
         return self._make_name(py_node, py_node.attr)
@@ -224,10 +224,10 @@ class BuilderVisitor(ast.NodeVisitor):
         return self._make_operator(py_node)
 
     def visit_Break(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        return py_model.PyDummyBlock(self.scope, self.parent), self.scope, None
 
     def visit_Continue(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        return py_model.PyDummyBlock(self.scope, self.parent), self.scope, None
 
     def visit_Call(self, py_node):
         # (lambda n: n)(9) is not handled yet
@@ -277,7 +277,7 @@ class BuilderVisitor(ast.NodeVisitor):
         return self._make_comprehension(py_node)
 
     def visit_Exec(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        return py_model.PyDummyBlock(self.scope, self.parent), self.scope, None
 
     def visit_Expr(self, py_node):
         bonsai_node = py_model.PyExpressionStatement(self.scope, self.parent,
@@ -285,7 +285,7 @@ class BuilderVisitor(ast.NodeVisitor):
         return bonsai_node, self.scope, None
 
     def visit_For(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        return py_model.PyDummyBlock(self.scope, self.parent), self.scope, None
 
     def visit_keyword(self, py_node):
         bonsai_node = py_model.PyKeyValue(self.scope, self.parent, py_node.arg)
@@ -300,7 +300,7 @@ class BuilderVisitor(ast.NodeVisitor):
         return bonsai_node, bonsai_node, props
 
     def visit_Global(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        return py_model.PyDummyBlock(self.scope, self.parent), self.scope, None
 
     def visit_GeneratorExp(self, py_node):
         return self._make_comprehension(py_node)
@@ -362,13 +362,13 @@ class BuilderVisitor(ast.NodeVisitor):
         return py_node.n, self.scope, None
 
     def visit_Pass(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        return py_model.PyDummyBlock(self.scope, self.parent), self.scope, None
 
     def visit_Raise(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        return py_model.PyDummyBlock(self.scope, self.parent), self.scope, None
 
     def visit_Return(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        return py_model.PyDummyBlock(self.scope, self.parent), self.scope, None
 
     def visit_Set(self, py_node):
         return self._make_composite_literal(py_node)
@@ -383,10 +383,10 @@ class BuilderVisitor(ast.NodeVisitor):
         return py_model.PyDummyExpr(self.scope, self.parent), self.scope, None
 
     def visit_TryFinally(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        return py_model.PyDummyBlock(self.scope, self.parent), self.scope, None
 
     def visit_TryExcept(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        return py_model.PyDummyBlock(self.scope, self.parent), self.scope, None
 
     def visit_Tuple(self, py_node):
         return self._make_composite_literal(py_node)
@@ -395,10 +395,10 @@ class BuilderVisitor(ast.NodeVisitor):
         return self._make_operator(py_node)
 
     def visit_While(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        return py_model.PyDummyBlock(self.scope, self.parent), self.scope, None
 
     def visit_With(self, py_node):
-        return py_model.PyBlock(self.scope, self.parent), self.scope, None
+        return py_model.PyDummyBlock(self.scope, self.parent), self.scope, None
 
     def visit_Yield(self, py_node):
         return py_model.PyDummyExpr(self.scope, self.parent), self.scope, None

@@ -423,8 +423,22 @@ class PyDummyExpr(PyExpression):
 
     def _children(self):
         for child in self._subtree:
-            yield child
+            if isinstance(child, CodeEntity):
+                yield child
 
+
+class PyDummyBlock(PyBlock):
+    def __init__(self, scope, parent):
+        PyBlock.__init__(self, scope, parent, None)
+
+    def _add(self, child):
+        self.body.append(child)
+
+    def _children(self):
+        """Yield all direct children of this object."""
+        for codeobj in self.body:
+            if isinstance(codeobj, CodeEntity):
+                yield codeobj
 
 # class PyLambda(PyExpression):
 #     NAME = '(lambda)'
