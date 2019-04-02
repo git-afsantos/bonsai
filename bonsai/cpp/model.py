@@ -145,7 +145,11 @@ class CppFunctionCall(CodeFunctionCall, CppExpressionInterface):
 
     @property
     def is_constructor(self):
-        result = self.result.split("::")[-1]
+        result = self.result
+        start = result.find("<")
+        if start >= 0:
+            result = result[:start]
+        result = result.split("::")[-1]
         if result.endswith(" *"):
             result = result[:-2]
         return result == self.name

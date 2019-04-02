@@ -117,7 +117,9 @@ class CppExpressionBuilder(CppEntityBuilder):
         self.parenthesis = False
 
     def build(self, data):
-        result = self._build_literal()
+        result = self._pre_process_strings()
+        if result is None:
+            result = self._build_literal()
         if result is None:
             result = self._build_reference(data)
         if result is None:
@@ -132,6 +134,19 @@ class CppExpressionBuilder(CppEntityBuilder):
             result = self._build_unexposed(data)
         return result
 
+
+    def _pre_process_strings(self):
+        if self.cursor.kind == CK.CALL_EXPR and self.name == "basic_string":
+            cursor = next(self.cursor.get_children(), None)
+            if not cursor:
+                return ("", ())
+            if cursor.kind == CK.UNEXPOSED_EXPR:
+                cursor = next(cursor.get_children(), None)
+                if cursor and (cursor.kind == CK.STRING_LITERAL
+                               or cursor.kind == CK.DECL_REF_EXPR):
+                    self.cursor = cursor
+                    self.name = cursor.spelling
+        return None
 
     def _build_literal(self):
         token = next(self.cursor.get_tokens(), None)
@@ -153,15 +168,6 @@ class CppExpressionBuilder(CppEntityBuilder):
         if self.cursor.kind == CK.CXX_BOOL_LITERAL_EXPR:
             return (token.spelling == "true", ()) if token \
                                                   else (SomeCpp.BOOL, ())
-        if self.cursor.kind == CK.CALL_EXPR and self.name == "basic_string":
-            cursor = next(self.cursor.get_children(), None)
-            if not cursor:
-                return ("", ())
-            if cursor.kind == CK.UNEXPOSED_EXPR:
-                cursor = next(cursor.get_children(), None)
-                if cursor and cursor.kind == CK.STRING_LITERAL:
-                    self.cursor = cursor
-                    self.name = cursor.spelling
         if self.cursor.kind == CK.STRING_LITERAL:
             if self.name.startswith('"'):
                 self.name = self.name[1:-1]
@@ -236,7 +242,12 @@ class CppExpressionBuilder(CppEntityBuilder):
                 except ValueError as e:
                     if cppobj.is_constructor:
                         cppobj.full_name = cppobj.result + "::" + cppobj.name
-                cppobj.template = self._parse_templates(cppobj.name, tokens)
+                cppobj.template = self._parse_templates(cppobj.name,
+                                                        "".join(tokens))
+                # TODO not sure whether parsing only the type is enough
+                if not cppobj.template:
+                    cppobj.template = self._parse_templates(cppobj.name,
+                                                            cppobj.result)
     # -------------------------------------------------------------------------
                 ref = self.cursor.get_definition() or self.cursor.referenced
                 if ref:
@@ -354,9 +365,8 @@ class CppExpressionBuilder(CppEntityBuilder):
                     return token
         return "[op]"
 
-    def _parse_templates(self, name, tokens):
+    def _parse_templates(self, name, text):
         templates = []
-        text = "".join(tokens)
         start = text.find("<")
         if (start >= 0 and not "<" in name and not ">" in name
                        and text[:start].endswith(name)):
