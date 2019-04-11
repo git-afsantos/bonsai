@@ -43,6 +43,7 @@ for cppobj in (CodeQuery(parser.global_scope).all_references
                .where_name("a").get()):
     print "[{}:{}]".format(cppobj.line, cppobj.column), cppobj.pretty_str()
     print "[type]", cppobj.result
+    print "[canon. type]", cppobj.canonical_type
     print "[reference]", cppobj.reference or "unknown"
     value = resolve_reference(cppobj)
     if not value is None and value != cppobj:
