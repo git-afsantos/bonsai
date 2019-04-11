@@ -90,7 +90,9 @@ class CppEntityBuilder(object):
             id = self.cursor.get_usr()
             name = self.cursor.spelling
             result = self.cursor.type.spelling
-            cppobj = CppVariable(self.scope, self.parent, id, name, result)
+            ctype = self.cursor.type.get_canonical().spelling
+            cppobj = CppVariable(self.scope, self.parent, id, name, result,
+                                 ctype=ctype)
             data.register(cppobj)
             builders = []
             children = list(self.cursor.get_children())
@@ -178,8 +180,9 @@ class CppExpressionBuilder(CppEntityBuilder):
         if self.cursor.kind == CK.DECL_REF_EXPR \
                 or self.cursor.kind == CK.MEMBER_REF \
                 or self.cursor.kind == CK.MEMBER_REF_EXPR:
+            ctype = self.cursor.type.get_canonical().spelling
             cppobj = CppReference(self.scope, self.parent,
-                                  self.name, self.result)
+                                  self.name, self.result, ctype=ctype)
             cppobj.parenthesis = self.parenthesis
             cppobj.file = self.file
             cppobj.line = self.line
@@ -194,11 +197,14 @@ class CppExpressionBuilder(CppEntityBuilder):
                                                    insert = cppobj._set_field)
                     return (cppobj, (builder,))
                 else:
+                    ctype = self.cursor.type.get_canonical().spelling
                     cppobj.field_of = CppReference(self.scope, cppobj,
-                                                    "this", "[type]")
+                                                    "this", "[type]", ctype=ctype)
             return (cppobj, ())
         if self.cursor.kind == CK.CXX_THIS_EXPR:
-            cppobj = CppReference(self.scope, self.parent, "this", self.result)
+            ctype = self.cursor.type.get_canonical().spelling
+            cppobj = CppReference(self.scope, self.parent, "this", self.result,
+                                  ctype=ctype)
             cppobj.parenthesis = self.parenthesis
             return (cppobj, ())
         return None
@@ -212,7 +218,9 @@ class CppExpressionBuilder(CppEntityBuilder):
                 or self.cursor.kind == CK.COMPOUND_ASSIGNMENT_OPERATOR:
             name = self._parse_binary_operator()
         if not name is None:
-            cppobj = CppOperator(self.scope, self.parent, name, self.result)
+            ctype = self.cursor.type.get_canonical().spelling
+            cppobj = CppOperator(self.scope, self.parent, name, self.result,
+                                 ctype=ctype)
             cppobj.parenthesis = self.parenthesis
             cppobj.file = self.file
             cppobj.line = self.line
@@ -229,8 +237,9 @@ class CppExpressionBuilder(CppEntityBuilder):
         # NOTE: this is not totally correct, needs revision
         if self.cursor.kind == CK.CALL_EXPR:
             if self.name:
+                ctype = self.cursor.type.get_canonical().spelling
                 cppobj = CppFunctionCall(self.scope, self.parent,
-                                         self.name, self.result)
+                                         self.name, self.result, ctype=ctype)
                 cppobj.file = self.file
                 cppobj.line = self.line
                 cppobj.column = self.column
@@ -285,8 +294,9 @@ class CppExpressionBuilder(CppEntityBuilder):
                     result      = self._build_function_call(data)
                 return result
         elif self.cursor.kind == CK.CXX_DELETE_EXPR:
+            ctype = self.cursor.type.get_canonical().spelling
             cppobj = CppFunctionCall(self.scope, self.parent,
-                                     "delete", self.result)
+                                     "delete", self.result, ctype=ctype)
             cppobj.file = self.file
             cppobj.line = self.line
             cppobj.column = self.column
@@ -300,7 +310,9 @@ class CppExpressionBuilder(CppEntityBuilder):
         if isinstance(self.parent, CppFunctionCall) \
                 and self.cursor.kind == CK.UNEXPOSED_EXPR \
                 and not next(self.cursor.get_children(), None):
-            cppobj = CppDefaultArgument(self.scope, self.parent, self.result)
+            ctype = self.cursor.type.get_canonical().spelling
+            cppobj = CppDefaultArgument(self.scope, self.parent, self.result,
+                                        ctype=ctype)
             cppobj.parenthesis = self.parenthesis
             cppobj.file = self.file
             cppobj.line = self.line
@@ -713,8 +725,9 @@ class CppTopLevelBuilder(CppEntityBuilder):
         if self.cursor.kind in CppTopLevelBuilder._FUNCTIONS:
             id = self.cursor.get_usr()
             result = self.cursor.result_type.spelling
+            ctype = self.cursor.type.get_canonical().spelling
             cppobj = CppFunction(self.scope, self.parent, id,
-                                 self.name, result)
+                                 self.name, result, ctype=ctype)
             builders = []
             declaration = True
             children = self.cursor.get_children()
@@ -724,7 +737,9 @@ class CppTopLevelBuilder(CppEntityBuilder):
                     id = cursor.get_usr()
                     name = cursor.spelling or cursor.displayname
                     result = cursor.type.spelling or "[type]"
-                    var = CppVariable(cppobj, cppobj, id, name, result)
+                    ctype = cursor.type.get_canonical().spelling or "[type]"
+                    var = CppVariable(cppobj, cppobj, id, name, result,
+                                      ctype=ctype)
                     data.register(var)
                     cppobj.parameters.append(var)
                 elif cursor.kind == CK.TEMPLATE_TYPE_PARAMETER:
@@ -733,7 +748,9 @@ class CppTopLevelBuilder(CppEntityBuilder):
                     # This is for constructors, we need the sibling
                     declaration = False
                     result  = cursor.type.spelling or "[type]"
-                    op      = CppOperator(cppobj, cppobj, "=", result)
+                    ctype   = cursor.type.get_canonical().spelling or "[type]"
+                    op      = CppOperator(cppobj, cppobj, "=", result,
+                                          ctype=ctype)
                     member  = CppExpressionBuilder(cursor, cppobj, op)
                     cursor  = next(children)
                     value   = CppExpressionBuilder(cursor, cppobj, op)

@@ -38,17 +38,20 @@ CppStatementGroup = CodeStatementGroup
 # ----- Common Entities -------------------------------------------------------
 
 class CppVariable(CodeVariable):
-    def __init__(self, scope, parent, id, name, result):
+    def __init__(self, scope, parent, id, name, result, ctype=None):
         CodeVariable.__init__(self, scope, parent, id, name, result)
         self.full_type = result
+        self.canonical_type = ctype or result
         self.result = result[6:] if result.startswith("const ") else result
 
 
 class CppFunction(CodeFunction):
-    def __init__(self, scope, parent, id, name, result, definition=True):
+    def __init__(self, scope, parent, id, name, result, definition=True,
+                 ctype=None):
         CodeFunction.__init__(self, scope, parent, id, name, result,
                               definition=definition)
         self.full_type = result
+        self.canonical_type = ctype or result
         self.result = result[6:] if result.startswith("const ") else result
         self.template_parameters = 0
 
@@ -78,15 +81,16 @@ SomeCpp = SomeValue
 
 
 class CppExpressionInterface(object):
-    def _trim_result(self, result):
+    def _trim_result(self, result, ctype=None):
         self.full_type = result
+        self.canonical_type = ctype or result
         self.result = result[6:] if result.startswith("const ") else result
 
 
 class CppReference(CodeReference, CppExpressionInterface):
-    def __init__(self, scope, parent, name, result, paren = False):
+    def __init__(self, scope, parent, name, result, paren=False, ctype=None):
         CodeReference.__init__(self, scope, parent, name, result, paren = paren)
-        self._trim_result(result)
+        self._trim_result(result, ctype=ctype)
 
     def pretty_str(self, indent = 0):
         spaces = (" " * indent)
@@ -109,10 +113,11 @@ class CppOperator(CodeOperator, CppExpressionInterface):
                       "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", "&=",
                       "|=", "^=", ",")
 
-    def __init__(self, scope, parent, name, result, args = None, paren = False):
+    def __init__(self, scope, parent, name, result, args=None, paren=False,
+                 ctype=None):
         CodeOperator.__init__(self, scope, parent, name, result,
                               args = args, paren = paren)
-        self._trim_result(result)
+        self._trim_result(result, ctype=ctype)
 
     @property
     def is_assignment(self):
@@ -138,10 +143,10 @@ class CppOperator(CodeOperator, CppExpressionInterface):
 
 
 class CppFunctionCall(CodeFunctionCall, CppExpressionInterface):
-    def __init__(self, scope, parent, name, result):
+    def __init__(self, scope, parent, name, result, ctype=None):
         CodeFunctionCall.__init__(self, scope, parent, name, result)
         self.template = None
-        self._trim_result(result)
+        self._trim_result(result, ctype=ctype)
 
     @property
     def is_constructor(self):
@@ -196,9 +201,9 @@ class CppFunctionCall(CodeFunctionCall, CppExpressionInterface):
 
 
 class CppDefaultArgument(CodeDefaultArgument, CppExpressionInterface):
-    def __init__(self, scope, parent, result):
+    def __init__(self, scope, parent, result, ctype=None):
         CodeDefaultArgument.__init__(self, scope, parent, result)
-        self._trim_result(result)
+        self._trim_result(result, ctype=ctype)
 
 
 # ----- Statement Entities ----------------------------------------------------
