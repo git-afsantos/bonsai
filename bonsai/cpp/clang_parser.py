@@ -250,13 +250,14 @@ class CppExpressionBuilder(CppEntityBuilder):
                     cppobj.full_name = "".join(tokens[:tokens.index("(")])
                 except ValueError as e:
                     if cppobj.is_constructor:
-                        cppobj.full_name = cppobj.result + "::" + cppobj.name
+                        cppobj.full_name = "".join((cppobj.canonical_type,
+                                                    "::", cppobj.name))
                 cppobj.template = self._parse_templates(cppobj.name,
                                                         "".join(tokens))
                 # TODO not sure whether parsing only the type is enough
                 if not cppobj.template:
-                    cppobj.template = self._parse_templates(cppobj.name,
-                                                            cppobj.result)
+                    cppobj.template = self._parse_templates(
+                        cppobj.name, cppobj.canonical_type)
     # -------------------------------------------------------------------------
                 ref = self.cursor.get_definition() or self.cursor.referenced
                 if ref:

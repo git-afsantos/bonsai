@@ -150,7 +150,7 @@ class CppFunctionCall(CodeFunctionCall, CppExpressionInterface):
 
     @property
     def is_constructor(self):
-        result = self.result
+        result = self.canonical_type
         start = result.find("<")
         if start >= 0:
             result = result[:start]
