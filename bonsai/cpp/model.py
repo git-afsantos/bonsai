@@ -44,6 +44,15 @@ class CppVariable(CodeVariable):
         self.canonical_type = ctype or result
         self.result = result[6:] if result.startswith("const ") else result
 
+    def auto_init(self):
+        """Return a default value for this variable."""
+        assign = CppOperator(self.scope, self.parent, "=", self.result,
+                             ctype=self.canonical_type)
+        value = CppDefaultArgument(self.scope, assign, self.result,
+                                   ctype=self.canonical_type)
+        assign.arguments = (self, value)
+        return value
+
 
 class CppFunction(CodeFunction):
     def __init__(self, scope, parent, id, name, result, definition=True,

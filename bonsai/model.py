@@ -227,6 +227,13 @@ class CodeVariable(CodeEntity):
         """Whether this is a member/attribute of a class or object."""
         return isinstance(self.scope, CodeClass)
 
+    def auto_init(self):
+        """Return a default value for this variable."""
+        assign = CodeOperator(self.scope, self.parent, "=", self.result)
+        value = CodeDefaultArgument(self.scope, assign, self.result)
+        assign.arguments = (self, value)
+        return value
+
     def _add(self, codeobj):
         """Add a child (value) to this object."""
         assert isinstance(codeobj, CodeExpression.TYPES)

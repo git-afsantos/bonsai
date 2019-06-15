@@ -23,9 +23,11 @@
 # Imports
 ###############################################################################
 
-from .model import CodeEntity, CodeBlock, CodeControlFlow, CodeExpression, \
-                   CodeFunction, CodeFunctionCall, CodeOperator, \
-                   CodeReference, CodeVariable, CodeLoop
+from .model import (
+    CodeEntity, CodeBlock, CodeControlFlow, CodeExpression, CodeFunction,
+    CodeFunctionCall, CodeOperator, CodeReference, CodeVariable, CodeLoop,
+    CodeDefaultArgument
+)
 
 
 ###############################################################################
@@ -152,18 +154,23 @@ def resolve_reference(reference):
                     value = resolve_expression(w.arguments[1])
                 else:
                     continue # TODO
-        if value is None and var.is_parameter:
-            calls = [call for call in function.references \
-                          if isinstance(call, CodeFunctionCall)]
-            if len(calls) != 1:
-                return None
-            i = function.parameters.index(var)
-            if len(calls[0].arguments) <= i:
-                return None
-            arg = calls[0].arguments[i]
-            if isinstance(arg, CodeReference):
-                return resolve_reference(arg)
-            return arg
+        if value is None:
+            if var.is_parameter:
+                calls = [call for call in function.references
+                         if isinstance(call, CodeFunctionCall)]
+                if len(calls) != 1:
+                    return None
+                i = function.parameters.index(var)
+                if len(calls[0].arguments) <= i:
+                    return None
+                arg = calls[0].arguments[i]
+                if isinstance(arg, CodeReference):
+                    return resolve_reference(arg)
+                return arg
+            if (function.is_constructor and var.member_of is not None
+                    and function.member_of is var.member_of):
+                # variable is an auto-initialised member of the class
+                return var.auto_init()
         if isinstance(value, CodeExpression.TYPES):
             return resolve_expression(value)
         return value
