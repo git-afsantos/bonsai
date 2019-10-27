@@ -30,6 +30,11 @@
 ###############################################################################
 # Imports
 ###############################################################################
+from __future__ import print_function
+
+import logging
+import sys
+from functools import partial
 
 from .model import (
     CodeExpression, CodeExpressionStatement, CodeVariable, CodeGlobalScope
@@ -58,10 +63,9 @@ class CodeEntityBuilder(object):
 
     def _lookup_parent(self, cls):
         codeobj = self.parent
-        while not codeobj is None and not isinstance(codeobj, cls):
+        while codeobj is not None and not isinstance(codeobj, cls):
             codeobj = codeobj.parent
         return codeobj
-
 
 
 class CodeExpressionBuilder(CodeEntityBuilder):
@@ -69,19 +73,12 @@ class CodeExpressionBuilder(CodeEntityBuilder):
         CodeEntityBuilder.__init__(self, scope, parent)
 
     def build(self, data):
-        result = self._build_literal()
-        if result is None:
-            result = self._build_reference(data)
-        if result is None:
-            result = self._build_operator()
-        if result is None:
-            result = self._build_function_call(data)
-        if result is None:
-            result = self._build_default_argument()
-        if result is None:
-            result = self._build_other(data)
-        return result
-
+        return (self._build_literal()
+                or self._build_reference(data)
+                or self._build_operator()
+                or self._build_function_call(data)
+                or self._build_default_argument()
+                or self._build_other(data))
 
     def _build_literal(self):
         return None
@@ -107,27 +104,29 @@ class CodeStatementBuilder(CodeEntityBuilder):
         CodeEntityBuilder.__init__(self, scope, parent)
 
     def build(self, data):
-        result = self._build_declarations(data)
-        result = result or self._build_expression(data)
-        result = result or self._build_control_flow()
-        result = result or self._build_jump_statement()
-        result = result or self._build_block()
-        return result
-
+        return (self._build_declarations(data)
+                or self._build_expression(data)
+                or self._build_control_flow()
+                or self._build_jump_statement()
+                or self._build_block())
 
     def _build_expression(self, data):
         builder = CodeExpressionBuilder(self.scope, self.parent)
         result = builder.build(data)
+
         if result:
             expression = result[0]
             codeobj = CodeExpressionStatement(self.scope, self.parent,
-                                              expression = expression)
+                                              expression=expression)
             codeobj.file = self.file
             codeobj.line = self.line
             codeobj.column = self.column
+
             if isinstance(expression, CodeExpression):
                 expression.parent = codeobj
+
             result = (codeobj, result[1])
+
         return result
 
     def _build_declarations(self, data):
@@ -143,19 +142,16 @@ class CodeStatementBuilder(CodeEntityBuilder):
         return None
 
 
-
 class CodeTopLevelBuilder(CodeEntityBuilder):
-    def __init__(self, scope, parent, workspace = ""):
+    def __init__(self, scope, parent, workspace=''):
         CodeEntityBuilder.__init__(self, scope, parent)
         self.workspace = workspace
 
     def build(self, data):
-        result = self._build_variable(data)
-        result = result or self._build_function(data)
-        result = result or self._build_class(data)
-        result = result or self._build_namespace()
-        return result
-
+        return (self._build_variable(data)
+                or self._build_function(data)
+                or self._build_class(data)
+                or self._build_namespace())
 
     def _build_variable(self, data):
         return None
@@ -170,7 +166,6 @@ class CodeTopLevelBuilder(CodeEntityBuilder):
         return None
 
 
-
 ###############################################################################
 # AST Parsing
 ###############################################################################
@@ -180,10 +175,22 @@ class MultipleDefinitionError(Exception):
 
 class AnalysisData(object):
     def __init__(self):
-        self.entities   = {}    # id -> CodeEntity
-        self._refs      = {}    # id -> [CodeEntity]
+        # Mapping of the AST code entities, indexed by is
+        self.entities = {}    # id -> CodeEntity
 
-    def register(self, codeobj, declaration = False):
+        # Mapping of all the code entities that reference a certain id.
+        # Used only if the entity having said id is not in self.entities yet.
+        self._refs = {}       # id -> [CodeEntity]
+
+    def register(self, codeobj, declaration=False):
+        """Add a top-level code entity.
+
+        This method adds the code entity to internal list.
+
+        :param codeobj: The code entity that will be added to the AST.
+        :param declaration: Whether this is the declaration of the code entity.
+        """
+
         previous = self.entities.get(codeobj.id)
         if declaration and not previous is None:
             codeobj._definition = previous
@@ -196,33 +203,102 @@ class AnalysisData(object):
                                                   + codeobj.name)
                 previous._definition = codeobj
             for ref in previous.references:
-                codeobj.references.append(ref)
                 ref.reference = codeobj
+            codeobj.references.extend(previous.references)
             previous.references = []
         self.entities[codeobj.id] = codeobj
+
+        # If the code entity has references before it is added to the AST,
+        # these are found in self._refs. Therefore, they are moved to the code
+        # object here.
         if codeobj.id in self._refs:
-            for ref in self._refs[codeobj.id]:
-                codeobj.references.append(ref)
+            references = self._refs[codeobj.id]
+            codeobj.references.extend(references)
+            for ref in references:
                 ref.reference = codeobj
+
             del self._refs[codeobj.id]
 
-    def reference(self, id, ref):
-        codeobj = self.entities.get(id)
-        if not codeobj is None:
+    def reference(self, refd_id, ref):
+        """Add a reference to a code entity.
+
+        This method adds a referencing code entity to another referenced
+        entity. The latter is identified by its id.
+
+        :param refd_id: The id of the referenced code entity
+        :param ref: The referencing code entity.
+        """
+
+        codeobj = self.entities.get(refd_id)
+
+        # Referenced is in parsed entity, adding referencing entity to its
+        # `references` list
+        if codeobj is not None:
             codeobj.references.append(ref)
-            ref.reference = codeobj
+            referenced = codeobj
+
+        # Referenced id not parsed yet, storing reference in self._ref
         else:
-            if not id in self._refs:
-                self._refs[id] = []
-            self._refs[id].append(ref)
-            ref.reference = id
+            if refd_id not in self._refs:
+                self._refs[refd_id] = []
+
+            self._refs[refd_id].append(ref)
+            referenced = refd_id
+
+        ref.reference = referenced
 
 
 class CodeAstParser(object):
-    def __init__(self, workspace = ""):
+    class LoggerStream(object):
+        def __init__(self, logger, stream, log_level=None):
+            self.logger = logger
+            self.stream = stream
+            self.log_level = (log_level
+                              or self.logger.getEffectiveLevel()
+                              or logging.INFO)
+
+        def write(self, s):
+            self.stream.write(s)
+            self.logger.log(self.log_level, s)
+
+    @classmethod
+    def with_logger(cls, parse_fn):
+        def wrapper(*args, **kwargs):
+            self = args[0]
+
+            if not self.has_logger:
+                return parse_fn(*args, **kwargs)
+
+            sys.stdout = self.stdout_logger
+            sys.stderr = self.stderr_logger
+
+            ret = parse_fn(*args, **kwargs)
+
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
+
+            return ret
+
+        return wrapper
+
+    def __init__(self, workspace='', logger=None):
         self.workspace      = workspace
         self.global_scope   = CodeGlobalScope()
         self.data           = AnalysisData()
+
+        if logger is not None:
+            logger = logging.getLogger(logger)
+            self.stdout_logger = self.LoggerStream(logger, sys.__stdout__)
+            self.stderr_logger = self.LoggerStream(logger, sys.__stderr__,
+                                                   logging.ERROR)
+        else:
+            self.stdout_logger = None
+            self.stderr_logger = None
+
+    @property
+    def has_logger(self):
+        return (self.stdout_logger is not None
+                and self.stderr_logger is not None)
 
     def parse(self, file_path):
         return self.global_scope

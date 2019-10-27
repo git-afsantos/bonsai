@@ -19,9 +19,65 @@
 # THE SOFTWARE.
 
 ###############################################################################
-# Functions
+# Imports
 ###############################################################################
 
+import ast
 
-def identity(x):
-    return x
+###############################################################################
+# Global data
+###############################################################################
+
+composite_names = {
+    ast.Dict: 'dict',
+    ast.List: 'list',
+    ast.Set: 'set',
+    ast.Tuple: 'tuple',
+}
+
+comprehension_names = {
+    ast.DictComp: 'dict',
+    ast.GeneratorExp: 'generator',
+    ast.ListComp: 'list',
+    ast.SetComp: 'set',
+}
+
+operator_names = {
+    ast.Add: '+',
+    ast.And: 'and',
+    ast.BitAnd: '&',
+    ast.BitOr: '|',
+    ast.BitXor: '^',
+    ast.Div: '/',
+    ast.Eq: '==',
+    ast.FloorDiv: '//',
+    ast.Gt: '>',
+    ast.GtE: '>=',
+    ast.IfExp: 'conditional-operator',
+    ast.In: 'in',
+    ast.Invert: '~',
+    ast.Is: 'is',
+    ast.IsNot: 'is not',
+    ast.LShift: '<<',
+    ast.Lt: '<',
+    ast.LtE: '<=',
+    ast.Mod: '%',
+    ast.Mult: '*',
+    ast.Not: 'not',
+    ast.NotEq: '!=',
+    ast.NotIn: 'not in',
+    ast.Or: 'or',
+    ast.Pow: '**',
+    ast.RShift: '>>',
+    ast.Sub: '-',
+    ast.UAdd: '+',
+    ast.USub: '-',
+}
+
+parentheses = {
+    'dict': ('{', '}'),
+    'generator': ('(', ')'),
+    'list': ('[', ']'),
+    'set': ('{', '}'),
+    'tuple': ('(', ')'),
+}

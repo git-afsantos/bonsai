@@ -101,16 +101,16 @@ class CppReference(CodeReference, CppExpressionInterface):
         CodeReference.__init__(self, scope, parent, name, result, paren = paren)
         self._trim_result(result, ctype=ctype)
 
-    def pretty_str(self, indent = 0):
-        spaces = (" " * indent)
-        pretty = "{}({})" if self.parenthesis else "{}{}"
+    def pretty_str(self, indent=0):
+        spaces = ' ' * indent
+        pretty = '{}({})' if self.parenthesis else '{}{}'
         name = self.name
         if self.field_of:
             o = self.field_of
-            if isinstance(o, CppFunctionCall) and o.name == "operator->":
-                name = o.arguments[0].pretty_str() + "->" + self.name
+            if isinstance(o, CppFunctionCall) and o.name == 'operator->':
+                name = '{}->{}'.format(o.arguments[0].pretty_str(), self.name)
             else:
-                name = o.pretty_str() + "." + self.name
+                name = '{}.{}'.format(o.pretty_str(), self.name)
         return pretty.format(spaces, name)
 
 
@@ -130,22 +130,20 @@ class CppOperator(CodeOperator, CppExpressionInterface):
 
     @property
     def is_assignment(self):
-        return (self.name == "=" or self.name == "+=" or self.name == "-="
-                or self.name == "*=" or self.name == "/=" or self.name == "%="
-                or self.name == "&=" or self.name == "|=" or self.name == "^="
-                or self.name == "<<=" or self.name == ">>=")
+        return self.name in ('=', '+=', '-=', '*=', '/=', '%=', '&=', '|=',
+                             '^=', '<<=', '>>=')
 
-    def pretty_str(self, indent = 0):
-        indent = (" " * indent)
-        pretty = "{}({})" if self.parenthesis else "{}{}"
+    def pretty_str(self, indent=0):
+        indent = ' ' * indent
+        pretty = '{}({})' if self.parenthesis else '{}{}'
         operator = self.name
         if self.is_unary:
-            if self.name.startswith("_"):
+            if self.name.startswith('_'):
                 operator = pretty_str(self.arguments[0]) + self.name[1:]
             else:
                 operator += pretty_str(self.arguments[0])
         else:
-            operator = "{} {} {}".format(pretty_str(self.arguments[0]),
+            operator = '{} {} {}'.format(pretty_str(self.arguments[0]),
                                          self.name,
                                          pretty_str(self.arguments[1]))
         return pretty.format(indent, operator)
@@ -171,42 +169,44 @@ class CppFunctionCall(CodeFunctionCall, CppExpressionInterface):
     def _set_method(self, cppobj):
         assert isinstance(cppobj, CodeExpression)
         self.method_of = cppobj
-        self.full_name = cppobj.result + "::" + self.name
+        self.full_name = '{}::{}'.format(cppobj.result, self.name)
 
-    def pretty_str(self, indent = 0):
-        indent = " " * indent
-        pretty = "{}({})" if self.parenthesis else "{}{}"
+    def pretty_str(self, indent=0):
+        indent = ' ' * indent
+        pretty = '{}({})' if self.parenthesis else '{}{}'
         call = self.name
         operator = self.name[8:]
         args = [pretty_str(arg) for arg in self.arguments]
         if operator in CppOperator._BINARY_TOKENS:
-            call = "{} {} {}".format(args[0], operator, args[1])
+            call = '{} {} {}'.format(args[0], operator, args[1])
         else:
-            temp = "<" + ",".join(self.template) + ">" if self.template else ""
-            args = ", ".join(args)
+            temp = ('<{}>'.format(','.join(self.template))
+                    if self.template else '')
+            args = ', '.join(args)
             if self.method_of:
                 o = self.method_of
-                if isinstance(o, CppFunctionCall) and o.name == "operator->":
-                    call = "{}->{}{}({})".format(o.arguments[0].pretty_str(),
+                if isinstance(o, CppFunctionCall) and o.name == 'operator->':
+                    call = '{}->{}{}({})'.format(o.arguments[0].pretty_str(),
                                                  self.name, temp, args)
                 else:
-                    call = "{}.{}{}({})".format(o.pretty_str(),
+                    call = '{}.{}{}({})'.format(o.pretty_str(),
                                                 self.name, temp, args)
             elif self.is_constructor:
-                call = "new {}{}({})".format(self.name, temp, args)
+                call = 'new {}{}({})'.format(self.name, temp, args)
             else:
-                call = "{}{}({})".format(self.name, temp, args)
+                call = '{}{}({})'.format(self.name, temp, args)
         return pretty.format(indent, call)
 
     def __repr__(self):
-        temp = "<" + ",".join(self.template) + ">" if self.template else ""
-        args = ", ".join([str(arg) for arg in self.arguments])
+        temp = ('<{}>'.format(','.join(self.template))
+                if self.template else '')
+        args = ', '.join(map(str, self.arguments))
         if self.is_constructor:
-            return "[{}] new {}({})".format(self.result, self.name, args)
+            return '[{}] new {}({})'.format(self.result, self.name, args)
         if self.method_of:
-            return "[{}] {}.{}{}({})".format(self.result, self.method_of.name,
+            return '[{}] {}.{}{}({})'.format(self.result, self.method_of.name,
                                            self.name, temp, args)
-        return "[{}] {}{}({})".format(self.result, self.name, temp, args)
+        return '[{}] {}{}({})'.format(self.result, self.name, temp, args)
 
 
 class CppDefaultArgument(CodeDefaultArgument, CppExpressionInterface):
@@ -233,21 +233,21 @@ CppConditional = CodeConditional
 
 
 class CppLoop(CodeLoop):
-    def pretty_str(self, indent = 0):
-        spaces = " " * indent
+    def pretty_str(self, indent=0):
+        spaces = ' ' * indent
         condition = pretty_str(self.condition)
-        if self.name == "while":
-            pretty = spaces + "while (" + condition + "):\n"
-            pretty += self.body.pretty_str(indent = indent + 2)
-        elif self.name == "do":
-            pretty = spaces + "do:\n"
-            pretty += self.body.pretty_str(indent = indent + 2)
-            pretty += "\n" + spaces + "while (" + condition + ")"
-        elif self.name == "for":
-            v = self.declarations.pretty_str() if self.declarations else ""
-            i = self.increment.pretty_str(indent = 1) if self.increment else ""
-            pretty = spaces + "for ({}; {};{}):\n".format(v, condition, i)
-            pretty += self.body.pretty_str(indent = indent + 2)
+        if self.name == 'while':
+            pretty = '{}while ({}):\n'.format(spaces, condition)
+            pretty += self.body.pretty_str(indent=indent + 2)
+        elif self.name == 'do':
+            pretty = spaces + 'do:\n'
+            pretty += self.body.pretty_str(indent=indent + 2)
+            pretty += '\n{}while ({})'.format(spaces, condition)
+        elif self.name == 'for':
+            v = self.declarations.pretty_str() if self.declarations else ''
+            i = self.increment.pretty_str(indent=1) if self.increment else ''
+            pretty = '{}for ({}; {};{}):\n'.format(spaces, v, condition, i)
+            pretty += self.body.pretty_str(indent=indent + 2)
         return pretty
 
 

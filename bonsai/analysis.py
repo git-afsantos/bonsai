@@ -26,7 +26,7 @@
 from .model import (
     CodeEntity, CodeBlock, CodeControlFlow, CodeExpression, CodeFunction,
     CodeFunctionCall, CodeOperator, CodeReference, CodeVariable, CodeLoop,
-    CodeDefaultArgument
+    CodeDefaultArgument, CodeClass
 )
 
 
@@ -35,6 +35,8 @@ from .model import (
 ###############################################################################
 
 class CodeQuery(object):
+    DEFINITIONS = (CodeClass, CodeFunction, CodeVariable)
+
     def __init__(self, codeobj):
         assert isinstance(codeobj, CodeEntity)
         self.root = codeobj
@@ -66,24 +68,36 @@ class CodeQuery(object):
         self.recursive = True
         return self
 
+    @property
+    def definitions(self):
+        self.cls = self.DEFINITIONS
+        self.recursive = False
+        return self
+
+    @property
+    def all_definitions(self):
+        self.cls = self.DEFINITIONS
+        self.recursive = True
+        return self
+
     def where_name(self, name):
-        self.attributes["name"] = name
+        self.attributes['name'] = name
         return self
 
     def where_result(self, result):
-        self.attributes["result"] = result
+        self.attributes['result'] = result
         return self
 
     def get(self):
         result = []
-        for codeobj in self.root.filter(self.cls, recursive = self.recursive):
+        for codeobj in self.root.filter(self.cls, recursive=self.recursive):
             passes = True
             for key, value in self.attributes.iteritems():
                 if isinstance(value, basestring):
                     if getattr(codeobj, key) != value:
                         passes = False
                 else:
-                    if not getattr(codeobj, key) in value:
+                    if getattr(codeobj, key) not in value:
                         passes = False
             if passes:
                 result.append(codeobj)
@@ -94,33 +108,39 @@ class CodeQuery(object):
 # Interface Functions
 ###############################################################################
 
+import operator
+operator_mapping = {
+    '+': operator.add,
+    '-': operator.sub,
+    '*': operator.mul,
+    '/': operator.div,
+    '%': operator.mod
+}
+
 def resolve_expression(expression):
     assert isinstance(expression, CodeExpression.TYPES)
+
     if isinstance(expression, CodeReference):
         return resolve_reference(expression)
+
     if isinstance(expression, CodeOperator):
         args = []
+
         for arg in expression.arguments:
             arg = resolve_expression(arg)
             if not isinstance(arg, CodeExpression.LITERALS):
                 return expression
             args.append(arg)
+
         if expression.is_binary:
             a = args[0]
             b = args[1]
             if not isinstance(a, CodeExpression.LITERALS) \
                     or not isinstance(b, CodeExpression.LITERALS):
                 return expression
-            if expression.name == "+":
-                return a + b
-            if expression.name == "-":
-                return a - b
-            if expression.name == "*":
-                return a * b
-            if expression.name == "/":
-                return a / b
-            if expression.name == "%":
-                return a % b
+            if expression.name in operator_mapping:
+                return operator_mapping[expression.name](a, b)
+
     # if isinstance(expression, CodeExpression.LITERALS):
     # if isinstance(expression, SomeValue):
     # if isinstance(expression, CodeFunctionCall):
@@ -130,19 +150,22 @@ def resolve_expression(expression):
 
 def resolve_reference(reference):
     assert isinstance(reference, CodeReference)
+
     if reference.statement is None:
-        return None # TODO investigate
+        return None     # TODO investigate
+
     si = reference.statement._si
     if (reference.reference is None
             or isinstance(reference.reference, basestring)):
         return None
+
     if isinstance(reference.reference, CodeVariable):
         var = reference.reference
         value = var.value
         function = reference.function
         for w in var.writes:
             ws = w.statement
-            if not w.function is function:
+            if w.function is not function:
                 continue
             if ws._si < si:
                 if w.arguments[0].reference is var:

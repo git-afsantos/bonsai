@@ -203,9 +203,7 @@ class CodeVariable(CodeEntity):
             statement (e.g. a block), or a function, given that the variable
             is not one of the function's parameters.
         """
-        return (isinstance(self.scope, CodeStatement)
-                or (isinstance(self.scope, CodeFunction)
-                    and self not in self.scope.parameters))
+        return isinstance(self.scope, CodeStatement) or self.is_parameter
 
     @property
     def is_global(self):
@@ -422,7 +420,7 @@ class CodeClass(CodeEntity):
         spaces = ' ' * indent
         pretty = spaces + 'class ' + self.name
         if self.superclasses:
-            superclasses = ', '.join(self.superclasses)
+            superclasses = ', '.join(map(pretty_str, self.superclasses))
             pretty += '(' + superclasses + ')'
         pretty += ':\n'
         if self.members:
@@ -733,7 +731,7 @@ class CodeCompositeLiteral(CodeLiteral):
     def values(self):
         return tuple(self.value)
 
-    def _add_value(self, child):
+    def _add(self, child):
         """Add a value to the sequence in this composition."""
         self.value.append(child)
 
@@ -792,12 +790,12 @@ class CodeReference(CodeExpression):
 
     def _set_field(self, codeobj):
         """Set the object that contains the attribute this is a reference of."""
-        assert isinstance(codeobj, CodeExpression)
+        assert isinstance(codeobj, CodeExpression.TYPES)
         self.field_of = codeobj
 
     def _children(self):
         """Yield all direct children of this object."""
-        if self.field_of:
+        if isinstance(self.field_of, CodeEntity):
             yield self.field_of
 
     def pretty_str(self, indent=0):
@@ -875,7 +873,7 @@ class CodeOperator(CodeExpression):
     @property
     def is_assignment(self):
         """Whether this is an assignment operator."""
-        return self.name == "="
+        return self.name == '='
 
     def _add(self, codeobj):
         """Add a child (argument) to this object."""
@@ -956,12 +954,12 @@ class CodeFunctionCall(CodeExpression):
 
     def _set_method(self, codeobj):
         """Set the object on which a method is called."""
-        assert isinstance(codeobj, CodeExpression)
+        assert isinstance(codeobj, CodeExpression.TYPES)
         self.method_of = codeobj
 
     def _children(self):
         """Yield all direct children of this object."""
-        if self.method_of:
+        if isinstance(self.method_of, CodeEntity):
             yield self.method_of
         for codeobj in self.arguments:
             if isinstance(codeobj, CodeExpression):
