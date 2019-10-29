@@ -86,7 +86,7 @@ class FileFinder(object):
                     return module_path
 
                 if module_splits == ['*']:
-                    self.find_star(node)
+                    self.find_star(node, module_name)
 
             file_path = module_path + '.py'
             if path.isfile(file_path):
