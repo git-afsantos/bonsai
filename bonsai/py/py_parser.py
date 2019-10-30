@@ -193,13 +193,14 @@ class PyAstParser(object):
         node.name = path.basename(path.splitext(file_path)[0])
 
         self.cache[file_path] = (node, imported_names)
-
+        for i in imported_names:
+            self.imported_names_list.append(i)
         return node, imported_names
 
     def __init__(self, pythonpath=None, workspace=''):
         self.global_scope = PyGlobalScope()
         self.file_finder = FileFinder(self, pythonpath, workspace)
-
+        self.imported_names_list = []
         self.cache = {}
 
     def parse(self, file_path):
