@@ -23,6 +23,8 @@
 # Imports
 ###############################################################################
 
+from collections import namedtuple
+
 from .model import (
     CodeEntity, CodeBlock, CodeControlFlow, CodeExpression, CodeFunction,
     CodeFunctionCall, CodeOperator, CodeReference, CodeVariable, CodeLoop,
@@ -236,17 +238,31 @@ def is_under_loop(codeobj, recursive = False):
     return False
 
 
-def get_conditions(codeobj, recursive = False):
+ConditionObject = namedtuple("ConditionObject",
+    ("value", "statement", "is_bonsai", "file", "line", "column"))
+
+
+def get_conditions(codeobj, recursive=False, objs=False):
     conditions = []
     while not codeobj is None:
         if (isinstance(codeobj, CodeBlock)
                 and isinstance(codeobj.parent, CodeControlFlow)):
-            conditions.append(codeobj.parent.condition)
+            if objs:
+                conditions.append(_condition_obj(
+                    codeobj.parent.condition, codeobj.parent))
+            else:
+                conditions.append(codeobj.parent.condition)
         elif isinstance(codeobj, CodeFunction):
             if recursive:
                 for call in codeobj.references:
                     if isinstance(call, CodeFunctionCall):
-                        conditions.extend(get_conditions(call))
+                        conditions.extend(get_conditions(call, objs=objs))
             return conditions
         codeobj = codeobj.parent
     return conditions
+
+
+def _condition_obj(value, ctrl_flow_stmt):
+    return ConditionObject(value, ctrl_flow_stmt.name,
+        isinstance(value, CodeEntity), ctrl_flow_stmt.file,
+        ctrl_flow_stmt.line, ctrl_flow_stmt.column)
