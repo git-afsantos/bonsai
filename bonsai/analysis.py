@@ -239,7 +239,7 @@ def is_under_loop(codeobj, recursive = False):
 
 
 ConditionObject = namedtuple("ConditionObject",
-    ("value", "statement", "is_bonsai", "file", "line", "column"))
+    ("value", "statement", "is_bonsai", "file", "line", "column", "function"))
 
 
 def get_conditions(codeobj, recursive=False, objs=False):
@@ -262,7 +262,40 @@ def get_conditions(codeobj, recursive=False, objs=False):
     return conditions
 
 
+def get_condition_paths(codeobj):
+    paths = _get_condition_paths_rec(codeobj, {}, [])
+    for path in paths:
+        path.reverse()
+    return paths
+
+def _get_condition_paths_rec(codeobj, visited, wip_path):
+    if codeobj in visited:
+        intra_fun = visited[codeobj]
+        wip_path.extend(intra_fun)
+        # FIXME this is not complete
+        return [wip_path]
+    intra_fun, fun = _intra_fun_path(codeobj)
+    visited[codeobj] = intra_fun
+    wip_path.extend(intra_fun)
+    if fun is None or not fun.references:
+        return [wip_path]
+    paths = []
+    for call in fun.references:
+        copy = list(wip_path)
+        if isinstance(call, CodeFunctionCall):
+            for path in _get_condition_paths_rec(call, visited, copy):
+                paths.append(path)
+        else:
+            paths.append(copy)
+    return paths
+
+def _intra_fun_path(codeobj):
+    conditions = get_conditions(codeobj, recursive=False, objs=True)
+    conditions.reverse()
+    return conditions, codeobj.function
+
+
 def _condition_obj(value, ctrl_flow_stmt):
     return ConditionObject(value, ctrl_flow_stmt.name,
         isinstance(value, CodeEntity), ctrl_flow_stmt.file,
-        ctrl_flow_stmt.line, ctrl_flow_stmt.column)
+        ctrl_flow_stmt.line, ctrl_flow_stmt.column, ctrl_flow_stmt.function)
