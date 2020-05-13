@@ -291,7 +291,6 @@ def _get_condition_paths_rec(codeobj, visited, wip_path):
 
 def _intra_fun_path(codeobj):
     conditions = get_conditions(codeobj, recursive=False, objs=True)
-    conditions.reverse()
     return conditions, codeobj.function
 
 
