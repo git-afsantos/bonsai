@@ -192,10 +192,16 @@ def resolve_reference(reference):
                 if isinstance(arg, CodeReference):
                     return resolve_reference(arg)
                 return arg
-            if (function.is_constructor and var.member_of is not None
-                    and function.member_of is var.member_of):
-                # variable is an auto-initialised member of the class
-                return var.auto_init()
+            if var.member_of is not None:
+                if (function.is_constructor
+                        and function.member_of is var.member_of):
+                    # variable is an auto-initialised member of the class
+                    return var.auto_init()
+                if len(var.writes) == 1:
+                    w = var.writes[0]
+                    if (w.function.is_constructor
+                            and w.arguments[0].reference is var):
+                        return resolve_expression(w.arguments[1])
         if isinstance(value, CodeExpression.TYPES):
             return resolve_expression(value)
         return value
