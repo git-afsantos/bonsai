@@ -28,9 +28,19 @@ from bonsai.cpp.clang_parser import CppAstParser
 if len(sys.argv) < 2:
     print "Please provide a file to be analysed."
     sys.exit(1)
-CppAstParser.set_library_path()
+v = "3.8"
+argi = 1
+if sys.argv[1] == "-v":
+    if len(sys.argv) < 4:
+        print "Please provide a file to be analysed."
+        sys.exit(1)
+    v = sys.argv[2]
+    argi = 3
+CppAstParser.set_library_path(lib_path="/usr/lib/llvm-{v}/lib".format(v=v))
+CppAstParser.set_standard_includes(
+    "/usr/lib/llvm-{v}/lib/clang/{v}.0/include".format(v=v))
 parser = CppAstParser(workspace = "examples/cpp")
-for i in xrange(1, len(sys.argv)):
+for i in xrange(argi, len(sys.argv)):
     if parser.parse(sys.argv[i]) is None:
         print "No compile commands for file", sys.argv[i]
         sys.exit(1)
