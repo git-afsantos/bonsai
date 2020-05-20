@@ -85,7 +85,8 @@ class CppEntityBuilder(object):
     # Let's add some methods here, just to avoid code duplication.
 
     def _build_variable(self, data):
-        if self.cursor.kind in (CK.VAR_DECL, CK.FIELD_DECL):
+        if self.cursor.kind in (CK.VAR_DECL, CK.FIELD_DECL,
+                                CK.ENUM_CONSTANT_DECL):
             id = self.cursor.get_usr()
             name = self.cursor.spelling
             result = self.cursor.type.spelling
@@ -780,7 +781,8 @@ class CppTopLevelBuilder(CppEntityBuilder):
         return (self._build_variable(data)
                 or self._build_function(data)
                 or self._build_class(data)
-                or self._build_namespace())
+                or self._build_namespace()
+                or self._build_enum())
 
     def _build_function(self, data):
         if self.cursor.kind not in CppTopLevelBuilder._FUNCTIONS:
@@ -877,6 +879,17 @@ class CppTopLevelBuilder(CppEntityBuilder):
             ]
             return cppobj, builders
 
+        return None
+
+    def _build_enum(self):
+        if self.cursor.kind == CK.ENUM_DECL:
+            name = self.cursor.spelling
+            cppobj = CppEnum(self.scope, self.parent, name)
+            builders = [
+                CppTopLevelBuilder(c, cppobj, cppobj)
+                for c in self.cursor.get_children()
+            ]
+            return cppobj, builders
         return None
 
 

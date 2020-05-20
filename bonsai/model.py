@@ -390,7 +390,8 @@ class CodeClass(CodeEntity):
 
     def _add(self, codeobj):
         """Add a child (function, variable, class) to this object."""
-        assert isinstance(codeobj, (CodeFunction, CodeVariable, CodeClass))
+        assert isinstance(codeobj, (CodeFunction, CodeVariable,
+                                    CodeClass, CodeEnum))
         self.members.append(codeobj)
         codeobj.member_of = self
 
@@ -437,6 +438,58 @@ class CodeClass(CodeEntity):
         return '[class {}]'.format(self.name)
 
 
+class CodeEnum(CodeEntity):
+    def __init__(self, scope, parent, name):
+        CodeEntity.__init__(self, scope, parent)
+        self.name = name
+        self.values = []
+
+    @property
+    def is_definition(self):
+        return True
+
+    def _add(self, codeobj):
+        """Add a value to this object."""
+        assert isinstance(codeobj, CodeVariable)
+        self.values.append(codeobj)
+
+    def _children(self):
+        """Yield all direct children of this object."""
+        for codeobj in self.values:
+            yield codeobj
+
+    def _afterpass(self):
+        """Call the `_afterpass()` of child objects.
+
+            This should only be called after the object is fully built.
+        """
+        for i in xrange(len(self.values)):
+            codeobj = self.values[i]
+            codeobj._afterpass()
+            if codeobj.value is None:
+                if i == 0:
+                    codeobj._add(0)
+                else:
+                    prev = self.values[i-1]
+                    assert isinstance(prev.value, (int, long))
+                    codeobj._add(prev.value + 1)
+
+    def pretty_str(self, indent=0):
+        """Return a human-readable string representation of this object.
+
+        Kwargs:
+            indent (int): The amount of spaces to use as indentation.
+        """
+        spaces = ' ' * indent
+        pretty = '{}enum {}:\n'.format(spaces, self.name)
+        pretty += '\n'.join(c.pretty_str(indent + 2) for c in self.values)
+        return pretty
+
+    def __repr__(self):
+        """Return a string representation of this object."""
+        return '[enum {}]'.format(self.name)
+
+
 class CodeNamespace(CodeEntity):
     """This class represents a program namespace.
 
@@ -463,7 +516,7 @@ class CodeNamespace(CodeEntity):
     def _add(self, codeobj):
         """Add a child (namespace, function, variable, class) to this object."""
         assert isinstance(codeobj, (CodeNamespace, CodeClass,
-                                    CodeFunction, CodeVariable))
+                                    CodeFunction, CodeVariable, CodeEnum))
         self.children.append(codeobj)
 
     def _children(self):
@@ -511,7 +564,7 @@ class CodeGlobalScope(CodeEntity):
     def _add(self, codeobj):
         """Add a child (namespace, function, variable, class) to this object."""
         assert isinstance(codeobj, (CodeNamespace, CodeClass,
-                                    CodeFunction, CodeVariable))
+                                    CodeFunction, CodeVariable, CodeEnum))
         self.children.append(codeobj)
 
     def _children(self):

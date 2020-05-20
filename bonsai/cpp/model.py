@@ -77,6 +77,8 @@ class CppFunction(CodeFunction):
 
 CppClass = CodeClass
 
+CppEnum = CodeEnum
+
 CppNamespace = CodeNamespace
 
 CppGlobalScope = CodeGlobalScope
