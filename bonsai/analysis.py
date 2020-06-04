@@ -143,6 +143,31 @@ def resolve_expression(expression):
             if expression.name in operator_mapping:
                 return operator_mapping[expression.name](a, b)
 
+        if expression.is_unary:
+            a = args[0]
+            if not isinstance(a, CodeExpression.LITERALS):
+                return expression
+            if expression.name == "+":
+                if isinstance(a, basestring):
+                    try:
+                        return int(a)
+                    except ValueError:
+                        pass
+                    try:
+                        return float(a)
+                    except ValueError:
+                        pass
+                    return expression
+                try:
+                    return +a
+                except TypeError:
+                    return expression
+            elif expression.name == "-":
+                try:
+                    return -a
+                except TypeError:
+                    return expression
+
     # if isinstance(expression, CodeExpression.LITERALS):
     # if isinstance(expression, SomeValue):
     # if isinstance(expression, CodeFunctionCall):
