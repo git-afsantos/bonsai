@@ -206,6 +206,8 @@ def resolve_reference(reference):
                     continue # TODO
         if value is None:
             if var.is_parameter:
+                if var.function is not function:
+                    return None
                 calls = [call for call in function.references
                          if isinstance(call, CodeFunctionCall)]
                 if len(calls) != 1:
