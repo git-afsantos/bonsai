@@ -206,7 +206,7 @@ def resolve_reference(reference):
                     continue # TODO
         if value is None:
             if var.is_parameter:
-                if var.function is not function:
+                if _get_function(var) is not function:
                     return None
                 calls = [call for call in function.references
                          if isinstance(call, CodeFunctionCall)]
@@ -331,3 +331,9 @@ def _condition_obj(value, ctrl_flow_stmt):
     return ConditionObject(value, ctrl_flow_stmt.name,
         isinstance(value, CodeEntity), ctrl_flow_stmt.file,
         ctrl_flow_stmt.line, ctrl_flow_stmt.column, ctrl_flow_stmt.function)
+
+def _get_function(codeobj):
+    f = codeobj._lookup_parent(CodeFunction)
+    if f is None or isinstance(f, CodeFunction):
+        return f
+    return None
