@@ -23,6 +23,8 @@
 # Imports
 ###############################################################################
 
+from __future__ import print_function
+
 from collections import deque
 from ctypes import ArgumentError
 import os
@@ -1048,7 +1050,7 @@ class CppAstParser(CodeAstParser):
             for diagnostic in translation_unit.diagnostics:
                 if diagnostic.severity >= clang.Diagnostic.Error:
                     # logging.warning(diagnostic.spelling)
-                    print 'WARNING', diagnostic.spelling
+                    print('WARNING', diagnostic.spelling)
 
     @staticmethod
     def _cursor_str(cursor, indent):

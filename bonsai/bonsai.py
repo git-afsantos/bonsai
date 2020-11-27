@@ -23,6 +23,8 @@
 # Imports
 ###############################################################################
 
+from __future__ import print_function
+
 import argparse
 import cPickle
 import importlib
@@ -126,7 +128,7 @@ def main(argv = None, source_runner = False):
             text = bonsai_format(parser.global_scope)
         else:
             text = parser.global_scope.pretty_str()
-        print text
+        print(text)
         if args.output:
             _log.debug("Saving output to %s", args.output)
             with open(args.output, "w") as handle:
