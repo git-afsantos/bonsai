@@ -22,6 +22,14 @@
 # Imports
 ###############################################################################
 
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import next
+from builtins import map
+from builtins import filter
+from past.builtins import basestring
+from builtins import object
+
 import ast
 import itertools
 import sys
@@ -42,14 +50,14 @@ class FileFinder(object):
     def __init__(self, parser, pythonpath=None, workspace=''):
         self.parser = parser
         self.workspace = workspace
-        self.pythonpath = filter(self.is_in_workspace,
-                                 (pythonpath or []) + sys.path)
+        self.pythonpath = list(filter(self.is_in_workspace,
+                                      (pythonpath or []) + sys.path))
         self.top_level = {}
 
     def find_files(self, importing_path, imported_names):
         find_file = partial(self.find_file_by_import, importing_path)
-        file_paths = map(find_file, imported_names)
-        return filter(self.is_in_workspace, file_paths)
+        file_paths = list(map(find_file, imported_names))
+        return list(filter(self.is_in_workspace, file_paths))
 
     def find_file_by_import(self, importing_path, imported_module):
         entity_name, pythonpath = self.make_absolute(importing_path,

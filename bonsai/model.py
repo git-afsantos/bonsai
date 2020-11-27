@@ -20,6 +20,18 @@
 #THE SOFTWARE.
 
 ###############################################################################
+# Imports
+###############################################################################
+
+from __future__ import unicode_literals
+from builtins import str
+from builtins import map
+from builtins import range
+from past.builtins import basestring
+from builtins import object
+
+
+###############################################################################
 # Language Model
 ###############################################################################
 
@@ -335,8 +347,7 @@ class CodeFunction(CodeEntity, CodeStatementGroup):
             indent (int): The amount of spaces to use as indentation.
         """
         spaces = ' ' * indent
-        params = ', '.join(map(lambda p: p.result + ' ' + p.name,
-                           self.parameters))
+        params = ', '.join([p.result + ' ' + p.name for p in self.parameters])
         if self.is_constructor:
             pretty = '{}{}({}):\n'.format(spaces, self.name, params)
         else:
@@ -463,7 +474,7 @@ class CodeEnum(CodeEntity):
 
             This should only be called after the object is fully built.
         """
-        for i in xrange(len(self.values)):
+        for i in range(len(self.values)):
             codeobj = self.values[i]
             codeobj._afterpass()
             if codeobj.value is None:
@@ -471,7 +482,7 @@ class CodeEnum(CodeEntity):
                     codeobj._add(0)
                 else:
                     prev = self.values[i-1]
-                    assert isinstance(prev.value, (int, long))
+                    assert isinstance(prev.value, int)
                     codeobj._add(prev.value + 1)
 
     def pretty_str(self, indent=0):
@@ -712,10 +723,10 @@ class CodeLiteral(CodeExpression):
         return '[{}] {!r}'.format(self.result, self.value)
 
 
-CodeExpression.TYPES = (int, long, float, bool, basestring, SomeValue,
+CodeExpression.TYPES = (int, float, bool, basestring, SomeValue,
                         CodeLiteral, CodeExpression)
 
-CodeExpression.LITERALS = (int, long, float, bool, basestring, CodeLiteral)
+CodeExpression.LITERALS = (int, float, bool, basestring, CodeLiteral)
 
 
 class CodeNull(CodeLiteral):

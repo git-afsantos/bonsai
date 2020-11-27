@@ -23,6 +23,10 @@
 # Imports
 ###############################################################################
 
+from __future__ import unicode_literals
+from past.builtins import basestring
+from builtins import object
+
 from collections import namedtuple
 
 from .model import (
@@ -94,7 +98,7 @@ class CodeQuery(object):
         result = []
         for codeobj in self.root.filter(self.cls, recursive=self.recursive):
             passes = True
-            for key, value in self.attributes.iteritems():
+            for key, value in self.attributes.items():
                 if isinstance(value, basestring):
                     if getattr(codeobj, key) != value:
                         passes = False

@@ -23,8 +23,14 @@
 # Imports
 ###############################################################################
 
+from __future__ import print_function
+from __future__ import unicode_literals
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+
 import argparse
-import cPickle
+import pickle
 import importlib
 import logging
 import os
@@ -126,12 +132,12 @@ def main(argv = None, source_runner = False):
             text = bonsai_format(parser.global_scope)
         else:
             text = parser.global_scope.pretty_str()
-        print text
+        print(text)
         if args.output:
             _log.debug("Saving output to %s", args.output)
             with open(args.output, "w") as handle:
                 if args.format == "pickle":
-                    cPickle.dump(parser, handle, cPickle.HIGHEST_PROTOCOL)
+                    pickle.dump(parser, handle, pickle.HIGHEST_PROTOCOL)
                 else:
                     handle.write(text)
         return 0

@@ -23,6 +23,11 @@
 # Imports
 ###############################################################################
 
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import next
+from builtins import object
+
 from collections import deque
 from ctypes import ArgumentError
 import os
@@ -1048,7 +1053,7 @@ class CppAstParser(CodeAstParser):
             for diagnostic in translation_unit.diagnostics:
                 if diagnostic.severity >= clang.Diagnostic.Error:
                     # logging.warning(diagnostic.spelling)
-                    print 'WARNING', diagnostic.spelling
+                    print('WARNING', diagnostic.spelling)
 
     @staticmethod
     def _cursor_str(cursor, indent):
@@ -1072,7 +1077,7 @@ class CppAstParser(CodeAstParser):
 # Helpers
 ###############################################################################
 
-class cwd:
+class cwd(object):
     """Run a block of code from a specified working directory"""
     def __init__(self, path):
         self.dir = path
