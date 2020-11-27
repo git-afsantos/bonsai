@@ -28,6 +28,12 @@ from past.builtins import basestring
 from builtins import object
 
 from collections import namedtuple
+import operator
+
+try:
+    DIV_OP = operator.truediv   # Python 3+
+except AttributeError:
+    DIV_OP = operator.div       # Python 2
 
 from .model import (
     CodeEntity, CodeBlock, CodeControlFlow, CodeExpression, CodeFunction,
@@ -114,12 +120,11 @@ class CodeQuery(object):
 # Interface Functions
 ###############################################################################
 
-import operator
 operator_mapping = {
     '+': operator.add,
     '-': operator.sub,
     '*': operator.mul,
-    '/': operator.div,
+    '/': DIV_OP,
     '%': operator.mod
 }
 
