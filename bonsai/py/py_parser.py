@@ -23,6 +23,7 @@
 ###############################################################################
 
 from __future__ import print_function
+from __future__ import unicode_literals
 from builtins import next
 from builtins import map
 from builtins import filter

@@ -24,6 +24,7 @@
 # Functions
 ###############################################################################
 
+from __future__ import unicode_literals
 
 def identity(x):
     return x

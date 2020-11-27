@@ -22,6 +22,7 @@
 # Imports
 ###############################################################################
 
+from __future__ import unicode_literals
 from builtins import zip
 from builtins import map
 from builtins import object
