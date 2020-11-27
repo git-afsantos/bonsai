@@ -23,6 +23,9 @@
 # Imports
 ###############################################################################
 
+from builtins import map
+from builtins import object
+
 from ..model import *
 
 

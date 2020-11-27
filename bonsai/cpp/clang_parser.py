@@ -24,6 +24,8 @@
 ###############################################################################
 
 from __future__ import print_function
+from builtins import next
+from builtins import object
 
 from collections import deque
 from ctypes import ArgumentError
@@ -1074,7 +1076,7 @@ class CppAstParser(CodeAstParser):
 # Helpers
 ###############################################################################
 
-class cwd:
+class cwd(object):
     """Run a block of code from a specified working directory"""
     def __init__(self, path):
         self.dir = path

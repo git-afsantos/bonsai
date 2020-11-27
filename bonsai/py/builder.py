@@ -22,6 +22,10 @@
 # Imports
 ###############################################################################
 
+from builtins import zip
+from builtins import map
+from builtins import object
+
 import ast
 import itertools
 import re
@@ -155,8 +159,8 @@ class PyBonsaiBuilder(object):
     def finalize_PyCompositeLiteral(self, bonsai_node):
         if bonsai_node.result == 'dict':
             half = len(self.children) // 2
-            pairs = zip(self.children[:half], self.children[half:])
-            children = map(self._make_key_value, pairs)
+            pairs = list(zip(self.children[:half], self.children[half:]))
+            children = list(map(self._make_key_value, pairs))
         else:
             children = self.children
 
@@ -188,7 +192,7 @@ class PyBonsaiBuilder(object):
         bonsai_node._set_condition(self.children[0])
 
         make_stmt = partial(self._make_statement, bonsai_node)
-        children = map(make_stmt, self.children[1:])
+        children = list(map(make_stmt, self.children[1:]))
 
         start, end = 1, 1 + self.then_count
         for stmt in children[start:end]:
@@ -264,8 +268,8 @@ class PyBonsaiBuilder(object):
                 for entity in map(self._get_aliased_name, bonsai_node.entities)
             )
         else:
-            self.imported_names = map(self._get_aliased_name,
-                                      bonsai_node.modules)
+            self.imported_names = list(map(self._get_aliased_name,
+                                           bonsai_node.modules))
 
         return bonsai_node
 
@@ -278,7 +282,7 @@ class PyBonsaiBuilder(object):
 
     def finalize_PyOperator(self, bonsai_node):
         if self.ops:
-            ops = zip(self.children, self.ops, self.children[1:])
+            ops = list(zip(self.children, self.ops, self.children[1:]))
             return self._expand_compare(bonsai_node.scope, bonsai_node.parent,
                                         ops)
         return self._add_all_children(bonsai_node)

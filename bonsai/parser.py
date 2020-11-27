@@ -30,7 +30,9 @@
 ###############################################################################
 # Imports
 ###############################################################################
+
 from __future__ import print_function
+from builtins import object
 
 import logging
 import sys

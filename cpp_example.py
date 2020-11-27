@@ -21,6 +21,7 @@
 #THE SOFTWARE.
 
 from __future__ import print_function
+from builtins import range
 
 import sys
 from bonsai.analysis import *
@@ -42,7 +43,7 @@ CppAstParser.set_library_path(lib_path="/usr/lib/llvm-{v}/lib".format(v=v))
 CppAstParser.set_standard_includes(
     "/usr/lib/llvm-{v}/lib/clang/{v}.0/include".format(v=v))
 parser = CppAstParser(workspace = "examples/cpp")
-for i in xrange(argi, len(sys.argv)):
+for i in range(argi, len(sys.argv)):
     if parser.parse(sys.argv[i]) is None:
         print("No compile commands for file", sys.argv[i])
         sys.exit(1)
