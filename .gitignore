@@ -1,8 +1,8 @@
-bonsai/*.pyc
-bonsai/**/*.pyc
-build
-dist
-bonsai.egg-info
+*.py[co]
+__pycache__
+/build
+/dist
+/*.egg-info
 
 # IDE
 .idea/
