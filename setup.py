@@ -8,9 +8,9 @@ def read(fname):
 
 setup(
     name            = "bonsai-code",
-    version         = "0.6.2",
+    version         = "0.6.3",
     author          = "Andre Santos",
-    author_email    = "andre.f.santos@inesctec.pt",
+    author_email    = "haros.framework@gmail.com",
     description     = "Static analysis library.",
     long_description= read("README.rst"),
     license         = "MIT",
