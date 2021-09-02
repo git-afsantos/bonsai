@@ -152,7 +152,10 @@ class CppExpressionBuilder(CppEntityBuilder):
                 token = token.spelling
                 while token.endswith(("U", "u", "L", "l")):
                     token = token[:-1]
-                return int(token, 0), ()
+                try:
+                    return int(token, 0), ()
+                except:
+                    return int(token, 8), ()
             return SomeCpp.INTEGER, ()
 
         if self.cursor.kind == CK.FLOATING_LITERAL:
