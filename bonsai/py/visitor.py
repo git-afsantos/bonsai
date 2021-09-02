@@ -121,6 +121,7 @@ class BuilderVisitor(ast.NodeVisitor):
             # return to parent
             self.builder.add_child(bonsai_node,
                                    children_builder.imported_names)
+            return bonsai_node, children_scope, props
 
         return builder_visit
 
@@ -355,6 +356,9 @@ class BuilderVisitor(ast.NodeVisitor):
     def visit_Name(self, py_node):
         return self._make_name(py_node, py_node.id)
 
+    def visit_NameConstant(self, py_node):
+        return py_node.value, self.scope, None 
+    
     def visit_NoneAST(self, py_node):
         bonsai_node = py_model.PyNull(self.scope, self.parent)
         return bonsai_node, self.scope, None
