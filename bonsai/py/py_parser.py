@@ -55,6 +55,7 @@ class FileFinder(object):
         self.top_level = {}
 
     def find_files(self, importing_path, imported_names):
+        #print("[bonsai]: trying to find", list(imported_names), "from", str(importing_path))
         find_file = partial(self.find_file_by_import, importing_path)
         file_paths = list(map(find_file, imported_names))
         return list(filter(self.is_in_workspace, file_paths))
@@ -195,6 +196,7 @@ class PyAstParser(object):
 
         py_tree = ASTPreprocessor().visit(ast.parse(content, file_path))
         node, imported_names = BuilderVisitor().build(py_tree, file_path)
+        imported_names = list(imported_names)
 
         node.scope = self.global_scope
         node.parent = self.global_scope
@@ -218,11 +220,18 @@ class PyAstParser(object):
         if not path.isfile(file_path):
             return self.global_scope
 
+        #print("[bonsai]: parsing", file_path)
         node, imported_names = self._parse_file(file_path)
+        #print("[bonsai]: from", file_path, "got:")
+        #print("  >> node:", repr(node))
+        #print("  >> imported:", repr(imported_names))
         self.global_scope._add(node)
 
+        #print("[bonsai]: recursive parsing of:")
         for source in self.file_finder.find_files(file_path, imported_names):
+            #print("  >> source:", source)
             self.parse(source)
+        #print("[bonsai]: resursive parsing ended for", file_path)
 
         return self.global_scope
 
