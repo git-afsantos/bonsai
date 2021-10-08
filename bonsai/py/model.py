@@ -282,6 +282,8 @@ class PyAssignment(PyStatement, CodeOperator):
         return False
 
     def _add(self, child):
+        if child is None:
+            child = SomeValue(None) # FIXME: not the best approach
         assert (isinstance(child, CodeExpression.TYPES)
                 or isinstance(child, CodeVariable)
                 and child.context == PyVariableContext.DEFINITION)

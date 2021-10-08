@@ -941,7 +941,9 @@ class CodeOperator(CodeExpression):
 
     def _add(self, codeobj):
         """Add a child (argument) to this object."""
-        assert isinstance(codeobj, CodeExpression.TYPES)
+        if codeobj is None:
+            codeobj = SomeValue(None) # FIXME: not the best approach
+        assert isinstance(codeobj, CodeExpression.TYPES), str(type(codeobj))
         self.arguments = self.arguments + (codeobj,)
 
     def _children(self):
