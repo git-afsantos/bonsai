@@ -245,13 +245,25 @@ class BuilderVisitor(ast.NodeVisitor):
             }
         else:
             # python >= 3.5
+            pos_args = []
+            star_args = None
+            for arg in (py_node.args or ()):
+                if isinstance(arg, ast.Starred):
+                    star_args = arg
+                else:
+                    pos_args.append(arg)
+            named_args = []
+            kw_args = None
+            for kw in (py_node.keywords or ()):
+                if kw.arg:
+                    named_args.append(kw)
+                else:
+                    kw_args = kw
             props = {
-                'args_count': len(py_node.args or ()),
-                'kwargs_count': len(py_node.keywords or ()),
-                'has_starargs': any(isinstance(arg, ast.Starred)
-                    for arg in (py_node.args or ())),
-                'has_kwargs': any(not kw.arg
-                    for kw in (py_node.keywords or ())),
+                'args_count': len(pos_args),
+                'kwargs_count': len(named_args),
+                'has_starargs': star_args is not None,
+                'has_kwargs': kw_args is not None,
             }
         return bonsai_node, self.scope, props
 
