@@ -235,12 +235,24 @@ class BuilderVisitor(ast.NodeVisitor):
         # (lambda n: n)(9) is not handled yet
 
         bonsai_node = py_model.PyFunctionCall(self.scope, self.parent, None)
-        props = {
-            'args_count': len(py_node.args or ()),
-            'kwargs_count': len(py_node.keywords or ()),
-            'has_starargs': py_node.starargs is not None,
-            'has_kwargs': py_node.kwargs is not None,
-        }
+        if hasattr(py_node, 'starargs'):
+            # python < 3.5
+            props = {
+                'args_count': len(py_node.args or ()),
+                'kwargs_count': len(py_node.keywords or ()),
+                'has_starargs': py_node.starargs is not None,
+                'has_kwargs': py_node.kwargs is not None,
+            }
+        else:
+            # python >= 3.5
+            props = {
+                'args_count': len(py_node.args or ()),
+                'kwargs_count': len(py_node.keywords or ()),
+                'has_starargs': any(isinstance(arg, ast.Starred)
+                    for arg in (py_node.args or ())),
+                'has_kwargs': any(not kw.arg
+                    for kw in (py_node.keywords or ())),
+            }
         return bonsai_node, self.scope, props
 
     def visit_ClassDef(self, py_node):
@@ -357,8 +369,8 @@ class BuilderVisitor(ast.NodeVisitor):
         return self._make_name(py_node, py_node.id)
 
     def visit_NameConstant(self, py_node):
-        return py_node.value, self.scope, None 
-    
+        return py_node.value, self.scope, None
+
     def visit_NoneAST(self, py_node):
         bonsai_node = py_model.PyNull(self.scope, self.parent)
         return bonsai_node, self.scope, None
