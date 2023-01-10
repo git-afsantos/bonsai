@@ -485,6 +485,12 @@ class CodeEnum(CodeEntity):
                     assert isinstance(prev.value, int)
                     codeobj._add(prev.value + 1)
 
+            elif isinstance(codeobj.value, CodeReference):
+                for prev in self.values[:i]:
+                    if isinstance(prev, CodeVariable):
+                        if prev.name == codeobj.value.name:
+                            codeobj._add(prev.value)
+
     def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
 
