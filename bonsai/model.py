@@ -490,6 +490,7 @@ class CodeEnum(CodeEntity):
                     if isinstance(prev, CodeVariable):
                         if prev.name == codeobj.value.name:
                             codeobj._add(prev.value)
+                            break
 
     def pretty_str(self, indent=0):
         """Return a human-readable string representation of this object.
